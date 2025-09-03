@@ -3,7 +3,7 @@ name: Fetch TV Content
 on:
   workflow_dispatch:  # 允许手动触发
   schedule:
-    - cron: '0 0 * * *'  # 每天UTC时间00:00自动运行（可选）
+    - cron: '0 0 * * *'  # 每天UTC时间00:00自动运行
   push:
     paths:
       - '.github/workflows/fetch-tv-content.yml'  # 当工作流文件更改时触发
@@ -17,20 +17,52 @@ jobs:
       uses: actions/checkout@v4
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
+        fetch-depth: 0
+
+    - name: Create directories if not exist
+      run: |
+        mkdir -p disk/TV
 
     - name: Fetch Gather.txt content
       run: |
-        curl -s http://123.56.43.183/tv/Gather.txt -o disk/TV/Gather.txt
-        
-    - name: Commit and push if changed
-      run: |
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
-        
-        if git diff --quiet; then
-          echo "No changes to commit"
+        echo "正在从 http://123.56.43.183/tv/Gather.txt 下载文件..."
+        if curl -s -f http://123.56.43.183/tv/Gather.txt -o disk/TV/Gather.txt; then
+          echo "下载成功"
+          # 检查文件是否为空
+          if [ -s disk/TV/Gather.txt ]; then
+            echo "文件内容有效"
+          else
+            echo "警告：下载的文件为空"
+            exit 1
+          fi
         else
-          git add disk/TV/Gather.txt
-          git commit -m "Update Gather.txt from remote source"
-          git push
+          echo "错误：下载失败"
+          exit 1
         fi
+
+    - name: Check for changes
+      id: check_changes
+      run: |
+        if git diff --quiet; then
+          echo "changes_detected=false" >> $GITHUB_OUTPUT
+          echo "没有检测到更改"
+        else
+          echo "changes_detected=true" >> $GITHUB_OUTPUT
+          echo "检测到文件更改"
+          git diff --name-only
+        fi
+
+    - name: Commit and push changes
+      if: steps.check_changes.outputs.changes_detected == 'true'
+      run: |
+        git config --local user.email "github-actions[bot]@users.noreply.github.com"
+        git config --local user.name "github-actions[bot]"
+        git add disk/TV/Gather.txt
+        git commit -m "🔄 自动更新 Gather.txt - $(date +'%Y-%m-%d %H:%M:%S')"
+        git push
+        echo "更改已提交并推送"
+
+    - name: No changes detected
+      if: steps.check_changes.outputs.changes_detected == 'false'
+      run: |
+        echo "没有检测到更改，跳过提交"
