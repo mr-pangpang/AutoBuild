@@ -1,55 +1,54 @@
-name: Update TVBOX Gather Source
+name: Update TVBOX Source with PowerShell
 
 on:
-  workflow_dispatch: # 手动触发
+  workflow_dispatch:
   schedule:
-    - cron: '0 2 * * *'  # 每天UTC时间02:00（北京时间10:00）
+    - cron: '0 2 * * *'
 
 jobs:
-  update-tvbox:
-    runs-on: windows-latest  # 使用Windows环境，与本地一致
+  update:
+    runs-on: windows-latest
     
     permissions:
       contents: write
     
     steps:
-    - name: Checkout repository
+    - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Download using curl (模拟本地bat)
-      shell: cmd  # 使用CMD，与本地bat一致
+    - name: Download with curl (PowerShell)
+      shell: pwsh
       run: |
-        echo 开始下载TVBOX直播源...
+        Write-Host "🚀 开始下载直播源..."
+        
+        # 使用curl命令（与本地bat一致）
         curl -s -L "https://tv-1.iill.top/m3u/Gather" -o Gather.txt
         
-        echo 检查下载结果...
-        if exist Gather.txt (
-          for /f %%i in ('type Gather.txt ^| find /c /v ""') do set lines=%%i
-          echo 下载成功！文件共 !lines! 行
-          echo 文件前5行内容：
-          set /p firstline=<Gather.txt
-          echo !firstline!
-        ) else (
-          echo 下载失败，创建空文件
-          echo #EXTM3U > Gather.txt
-          echo # 下载失败时间: %date% %time% >> Gather.txt
-        )
+        if (Test-Path "Gather.txt" -And (Get-Item "Gather.txt").Length -gt 0) {
+            $lineCount = (Get-Content "Gather.txt" | Measure-Object -Line).Lines
+            Write-Host "✅ 下载成功！文件共 $lineCount 行"
+            
+            # 显示文件开头内容
+            $firstLines = Get-Content "Gather.txt" -First 3
+            Write-Host "文件开头内容："
+            $firstLines | ForEach-Object { Write-Host "  $_" }
+        } else {
+            Write-Host "❌ 下载失败，创建空文件"
+            Set-Content -Path "Gather.txt" -Value "#EXTM3U`n# 下载失败时间: $(Get-Date)"
+        }
 
-    - name: Configure Git
-      shell: cmd
+    - name: Commit changes
+      shell: pwsh
       run: |
         git config user.name "github-actions[bot]"
         git config user.email "github-actions[bot]@users.noreply.github.com"
-
-    - name: Commit and push changes
-      shell: cmd
-      run: |
+        
         git add Gather.txt
-        git diff --staged --quiet
-        if errorlevel 1 (
-          git commit -m "📺 更新TVBOX直播源 - %date% %time%"
-          git push
-          echo ✅ 更新成功并推送到仓库
-        ) else (
-          echo 🟡 内容无变化，跳过提交
-        )
+        $hasChanges = git status --porcelain
+        if ($hasChanges) {
+            git commit -m "📺 自动更新TVBOX直播源 $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+            git push
+            Write-Host "✅ 更新完成！"
+        } else {
+            Write-Host "🟡 内容无变化，跳过提交"
+        }
