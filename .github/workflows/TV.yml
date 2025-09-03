@@ -1,4 +1,4 @@
-name: 定时下载TV.txt并转存到disk仓库
+name: TV
 on:
   schedule:
     - cron: "0 */2 * * *"  # 每两小时执行（分钟 小时 日 月 周）
