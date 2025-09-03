@@ -1,47 +1,15 @@
-name: Simple Gather Test
+name: Basic Test
 
 on:
   workflow_dispatch:
 
 jobs:
-  test:
+  basic-test:
     runs-on: ubuntu-latest
     
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Test basic curl
+      - name: Run simple command
         run: |
-          echo "🔄 Testing basic curl command..."
-          curl --version
-          echo ""
-
-      - name: Try simple download
-        run: |
-          echo "📥 Attempting to download..."
-          # 最简单的curl命令
-          curl -s -o test.txt "https://tv-1.iill.top/m3u/Gather" || echo "❌ Curl failed"
-          
-          if [ -f "test.txt" ]; then
-            echo "✅ File created successfully"
-            echo "File size: $(wc -c < test.txt) bytes"
-            echo "First 50 characters:"
-            head -c 50 test.txt
-            echo ""
-          else
-            echo "❌ No file was created"
-          fi
-
-      - name: Create backup file
-        run: |
-          echo "📝 Creating backup file..."
-          cat > Gather.txt << 'EOF'
-#EXTM3U
-#EXTINF:-1,Test Channel 1
-http://example.com/stream1
-#EXTINF:-1,Test Channel 2  
-http://example.com/stream2
-EOF
-          echo "✅ Backup file created"
-          ls -la Gather.txt
+          echo "🚀 GitHub Actions is working!"
+          echo "Current date: $(date)"
+          echo "Runner OS: $RUNNER_OS"
