@@ -1,152 +1,136 @@
-name: Gather Auto-Build
+name: Gather Debug
 
 on:
-  schedule:
-    - cron: '0 0 * * *'  # 每天UTC凌晨执行
-  workflow_dispatch:  # 手动触发
+  workflow_dispatch:  # 仅手动触发
 
 jobs:
-  save-gather:
+  debug-gather:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     
     steps:
-      - name: 检出代码
-        uses: actions/checkout@v4
-
-      - name: 调试网络连接
+      - name: 检查系统环境
         run: |
-          echo "🔍 开始网络诊断..."
-          
-          # 测试域名解析
-          echo "1. 解析域名 tv-1.iill.top"
-          nslookup tv-1.iill.top || echo "⚠️  DNS解析可能有问题"
-          
-          # 测试网络连通性
-          echo "2. 测试网络连通性"
-          ping -c 3 tv-1.iill.top || echo "⚠️  网络连通性测试失败"
-          
-          # 测试HTTP访问
-          echo "3. 测试HTTP访问"
-          curl -I "https://tv-1.iill.top/m3u/Gather" --connect-timeout 10 || echo "⚠️  HTTP访问测试失败"
+          echo "🖥️  系统信息:"
+          echo "Runner: $RUNNER_OS"
+          echo "当前时间: $(date)"
+          echo "IP地址:"
+          curl -s ifconfig.me
+          echo ""
 
-      - name: 尝试多种方式下载
-        id: download
+      - name: 测试网络连通性
         run: |
-          echo "🔄 尝试多种下载方式..."
+          echo "🌐 网络测试:"
+          echo "1. 测试基础网络:"
+          ping -c 2 google.com || echo "基础网络不通"
           
-          # 方法1: 标准curl
-          echo "方法1: 标准curl下载"
-          if curl -sSf --retry 2 --connect-timeout 15 --max-time 30 \
-             -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" \
-             -H "Accept: text/plain, */*" \
-             -H "Referer: https://tv-1.iill.top/" \
-             "https://tv-1.iill.top/m3u/Gather" -o "Gather.txt" && [ -s "Gather.txt" ]; then
-            echo "✅ 方法1成功"
-            exit 0
-          fi
+          echo "2. 测试目标域名解析:"
+          nslookup tv-1.iill.top || dig tv-1.iill.top || echo "DNS解析失败"
           
-          # 方法2: 使用wget
-          echo "方法2: 使用wget"
-          if wget --timeout=20 --tries=2 -U "Mozilla/5.0" \
-             "https://tv-1.iill.top/m3u/Gather" -O "Gather.txt" && [ -s "Gather.txt" ]; then
-            echo "✅ 方法2成功"
-            exit 0
-          fi
+          echo "3. 测试目标服务器连通性:"
+          ping -c 2 tv-1.iill.top || echo "Ping目标失败"
           
-          # 方法3: 尝试HTTP协议
-          echo "方法3: 尝试HTTP协议"
-          if curl -sSf --retry 2 --connect-timeout 15 --max-time 30 \
-             "http://tv-1.iill.top/m3u/Gather" -o "Gather.txt" && [ -s "Gather.txt" ]; then
-            echo "✅ 方法3成功"
-            exit 0
-          fi
-          
-          # 所有方法都失败
-          echo "❌ 所有下载方法都失败"
-          echo "正在创建空文件用于测试..."
-          echo "# 无法获取内容 - $(date)" > "Gather.txt"
-          echo "created_empty=true" >> $GITHUB_OUTPUT
-          exit 1
+          echo "4. 测试端口连通性:"
+          timeout 5 bash -c "echo >/dev/tcp/tv-1.iill.top/443" && echo "端口443开放" || echo "端口443不可达"
 
-      - name: 分析下载内容
+      - name: 详细HTTP测试
         run: |
-          echo "📊 文件分析:"
-          if [ -f "Gather.txt" ]; then
-            echo "文件大小: $(wc -c < Gather.txt) 字节"
-            echo "文件类型: $(file -b Gather.txt || echo '未知')"
-            echo "前100字节:"
-            head -c 100 Gather.txt | cat -A
+          echo "🔍 HTTP详细测试:"
+          echo "1. 获取HTTP头信息:"
+          curl -I -v --connect-timeout 10 --max-time 15 \
+            -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" \
+            "https://tv-1.iill.top/m3u/Gather" 2>&1 | head -20 || echo "获取头信息失败"
+          
+          echo "2. 尝试不同User-Agent:"
+          for ua in \
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" \
+            "curl/7.68.0" \
+            "Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15" \
+            "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
+          do
+            echo "尝试UA: $ua"
+            response=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 5 \
+              -A "$ua" \
+              "https://tv-1.iill.top/m3u/Gather")
+            echo "状态码: $response"
+          done
+
+      - name: 尝试直接访问
+        run: |
+          echo "🚀 尝试直接访问内容:"
+          echo "方法1: 简单curl"
+          curl -s --connect-timeout 10 "https://tv-1.iill.top/m3u/Gather" | head -c 200 | cat -A
+          echo ""
+          
+          echo "方法2: 详细输出"
+          curl -v --connect-timeout 10 "https://tv-1.iill.top/m3u/Gather" 2>&1 | grep -E "(HTTP/|<|>)" | head -10
+          
+          echo "方法3: 保存到文件检查"
+          timeout 15 curl -s "https://tv-1.iill.top/m3u/Gather" -o debug_output.txt
+          if [ -f debug_output.txt ]; then
+            echo "文件大小: $(wc -c < debug_output.txt) bytes"
+            echo "文件类型: $(file -b debug_output.txt)"
+            echo "前50字符:"
+            head -c 50 debug_output.txt | cat -A
             echo ""
-            echo "前5行:"
-            head -n 5 Gather.txt || echo "无法读取行"
-          else
-            echo "❌ 文件不存在"
-            exit 1
           fi
 
-      - name: 检查是否为有效内容
-        id: validate
+      - name: 测试替代方案
         run: |
-          if [ ! -f "Gather.txt" ]; then
-            echo "is_valid=false" >> $GITHUB_OUTPUT
-            echo "reason=file_not_exists" >> $GITHUB_OUTPUT
-            exit 0
-          fi
+          echo "🔄 测试替代URL:"
+          # 尝试可能的替代URL格式
+          urls=(
+            "https://tv-1.iill.top/m3u/Gather"
+            "http://tv-1.iill.top/m3u/Gather"
+            "https://tv-1.iill.top/Gather"
+            "https://tv-1.iill.top/m3u/gather"
+          )
           
-          content=$(head -c 500 "Gather.txt" || echo "")
-          
-          # 检查常见错误页面特征
-          if echo "$content" | grep -qi "error\|404\|not.found\|access.denied\|cloudflare"; then
-            echo "is_valid=false" >> $GITHUB_OUTPUT
-            echo "reason=error_page" >> $GITHUB_OUTPUT
-          elif echo "$content" | grep -qi "<html\|<!DOCTYPE"; then
-            echo "is_valid=false" >> $GITHUB_OUTPUT
-            echo "reason=html_page" >> $GITHUB_OUTPUT
-          elif [ $(wc -c < "Gather.txt") -lt 10 ]; then
-            echo "is_valid=false" >> $GITHUB_OUTPUT
-            echo "reason=too_small" >> $GITHUB_OUTPUT
-          else
-            echo "is_valid=true" >> $GITHUB_OUTPUT
-          fi
+          for url in "${urls[@]}"; do
+            echo "测试: $url"
+            code=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 5 "$url")
+            echo "状态码: $code"
+            if [ "$code" = "200" ]; then
+              echo "✅ 可能有效的URL: $url"
+              curl -s "$url" | head -2
+            fi
+            echo "---"
+          done
 
-      - name: 处理无效内容
-        if: steps.validate.outputs.is_valid == 'false'
+      - name: 生成测试文件
         run: |
-          echo "⚠️  内容无效: ${{ steps.validate.outputs.reason }}"
-          echo "当前内容:"
-          head -n 3 "Gather.txt" || echo "无内容"
-          
-          # 保存错误信息
-          echo "# 获取失败 - ${{ steps.validate.outputs.reason }}" > "Gather.txt"
-          echo "# 时间: $(TZ='Asia/Shanghai' date '+%Y-%m-%d %H:%M:%S CST')" >> "Gather.txt"
-          echo "# 来源: https://tv-1.iill.top/m3u/Gather" >> "Gather.txt"
+          echo "📝 生成测试文件:"
+          cat > Gather.txt << EOF
+#EXTM3U
+# 调试信息 - 无法从源站获取内容
+# 时间: $(date)
+# 源站: https://tv-1.iill.top/m3u/Gather
+# 状态: 连接测试失败
+# 请查看工作流程日志获取详细错误信息
 
-      - name: 提交文件
-        run: |
-          git config --global user.name "GitHub Actions Bot"
-          git config --global user.email "actions@users.noreply.github.com"
+# 示例频道（测试用）
+#EXTINF:-1 tvg-id="test1" tvg-name="测试频道1" tvg-logo="https://example.com/logo.png" group-title="测试",测试频道1
+http://example.com/stream1
+EOF
           
-          git add Gather.txt
-          
-          if [ "${{ steps.validate.outputs.is_valid }}" = "true" ]; then
-            line_count=$(wc -l < "Gather.txt")
-            file_size=$(du -h "Gather.txt" | cut -f1)
-            commit_msg="✅ 更新Gather列表 - $(TZ='Asia/Shanghai' date '+%Y-%m-%d %H:%M CST') | 行数: $line_count"
-          else
-            commit_msg="⚠️  获取失败 - ${{ steps.validate.outputs.reason }} - $(TZ='Asia/Shanghai' date '+%Y-%m-%d %H:%M CST')"
-          fi
-          
-          git commit -m "$commit_msg" || exit 0
-          git push origin ${{ github.ref }}
-          
-          echo "📤 提交完成: $commit_msg"
-
-      - name: 完成总结
-        run: |
-          echo "🎉 流程完成"
-          echo "有效性: ${{ steps.validate.outputs.is_valid }}"
-          echo "原因: ${{ steps.validate.outputs.reason || 'N/A' }}"
-          echo "文件信息:"
+          echo "测试文件已创建"
           ls -la Gather.txt
+          echo "前5行:"
+          head -5 Gather.txt
+
+      - name: 显示完整诊断报告
+        run: |
+          echo "📊 诊断报告完成"
+          echo "=========================================="
+          echo "如果所有测试都失败，可能的原因:"
+          echo "1. 🔒 网站需要特定认证或Token"
+          echo "2. 🌐 GitHub Actions的IP被封锁"
+          echo "3. 🚫 URL已失效或变更"
+          echo "4. ⏰ 网站临时不可用"
+          echo "5. 🛡️  Cloudflare/WAF防护"
+          echo ""
+          echo "建议解决方案:"
+          echo "1. 手动访问URL确认是否可用"
+          echo "2. 检查是否需要API密钥"
+          echo "3. 联系网站管理员"
+          echo "4. 使用代理服务器"
+          echo "=========================================="
