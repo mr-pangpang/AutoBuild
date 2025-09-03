@@ -1,136 +1,47 @@
-name: Gather Debug
+name: Simple Gather Test
 
 on:
-  workflow_dispatch:  # 仅手动触发
+  workflow_dispatch:
 
 jobs:
-  debug-gather:
+  test:
     runs-on: ubuntu-latest
     
     steps:
-      - name: 检查系统环境
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Test basic curl
         run: |
-          echo "🖥️  系统信息:"
-          echo "Runner: $RUNNER_OS"
-          echo "当前时间: $(date)"
-          echo "IP地址:"
-          curl -s ifconfig.me
+          echo "🔄 Testing basic curl command..."
+          curl --version
           echo ""
 
-      - name: 测试网络连通性
+      - name: Try simple download
         run: |
-          echo "🌐 网络测试:"
-          echo "1. 测试基础网络:"
-          ping -c 2 google.com || echo "基础网络不通"
+          echo "📥 Attempting to download..."
+          # 最简单的curl命令
+          curl -s -o test.txt "https://tv-1.iill.top/m3u/Gather" || echo "❌ Curl failed"
           
-          echo "2. 测试目标域名解析:"
-          nslookup tv-1.iill.top || dig tv-1.iill.top || echo "DNS解析失败"
-          
-          echo "3. 测试目标服务器连通性:"
-          ping -c 2 tv-1.iill.top || echo "Ping目标失败"
-          
-          echo "4. 测试端口连通性:"
-          timeout 5 bash -c "echo >/dev/tcp/tv-1.iill.top/443" && echo "端口443开放" || echo "端口443不可达"
-
-      - name: 详细HTTP测试
-        run: |
-          echo "🔍 HTTP详细测试:"
-          echo "1. 获取HTTP头信息:"
-          curl -I -v --connect-timeout 10 --max-time 15 \
-            -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" \
-            "https://tv-1.iill.top/m3u/Gather" 2>&1 | head -20 || echo "获取头信息失败"
-          
-          echo "2. 尝试不同User-Agent:"
-          for ua in \
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" \
-            "curl/7.68.0" \
-            "Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15" \
-            "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
-          do
-            echo "尝试UA: $ua"
-            response=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 5 \
-              -A "$ua" \
-              "https://tv-1.iill.top/m3u/Gather")
-            echo "状态码: $response"
-          done
-
-      - name: 尝试直接访问
-        run: |
-          echo "🚀 尝试直接访问内容:"
-          echo "方法1: 简单curl"
-          curl -s --connect-timeout 10 "https://tv-1.iill.top/m3u/Gather" | head -c 200 | cat -A
-          echo ""
-          
-          echo "方法2: 详细输出"
-          curl -v --connect-timeout 10 "https://tv-1.iill.top/m3u/Gather" 2>&1 | grep -E "(HTTP/|<|>)" | head -10
-          
-          echo "方法3: 保存到文件检查"
-          timeout 15 curl -s "https://tv-1.iill.top/m3u/Gather" -o debug_output.txt
-          if [ -f debug_output.txt ]; then
-            echo "文件大小: $(wc -c < debug_output.txt) bytes"
-            echo "文件类型: $(file -b debug_output.txt)"
-            echo "前50字符:"
-            head -c 50 debug_output.txt | cat -A
+          if [ -f "test.txt" ]; then
+            echo "✅ File created successfully"
+            echo "File size: $(wc -c < test.txt) bytes"
+            echo "First 50 characters:"
+            head -c 50 test.txt
             echo ""
+          else
+            echo "❌ No file was created"
           fi
 
-      - name: 测试替代方案
+      - name: Create backup file
         run: |
-          echo "🔄 测试替代URL:"
-          # 尝试可能的替代URL格式
-          urls=(
-            "https://tv-1.iill.top/m3u/Gather"
-            "http://tv-1.iill.top/m3u/Gather"
-            "https://tv-1.iill.top/Gather"
-            "https://tv-1.iill.top/m3u/gather"
-          )
-          
-          for url in "${urls[@]}"; do
-            echo "测试: $url"
-            code=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 5 "$url")
-            echo "状态码: $code"
-            if [ "$code" = "200" ]; then
-              echo "✅ 可能有效的URL: $url"
-              curl -s "$url" | head -2
-            fi
-            echo "---"
-          done
-
-      - name: 生成测试文件
-        run: |
-          echo "📝 生成测试文件:"
-          cat > Gather.txt << EOF
+          echo "📝 Creating backup file..."
+          cat > Gather.txt << 'EOF'
 #EXTM3U
-# 调试信息 - 无法从源站获取内容
-# 时间: $(date)
-# 源站: https://tv-1.iill.top/m3u/Gather
-# 状态: 连接测试失败
-# 请查看工作流程日志获取详细错误信息
-
-# 示例频道（测试用）
-#EXTINF:-1 tvg-id="test1" tvg-name="测试频道1" tvg-logo="https://example.com/logo.png" group-title="测试",测试频道1
+#EXTINF:-1,Test Channel 1
 http://example.com/stream1
+#EXTINF:-1,Test Channel 2  
+http://example.com/stream2
 EOF
-          
-          echo "测试文件已创建"
+          echo "✅ Backup file created"
           ls -la Gather.txt
-          echo "前5行:"
-          head -5 Gather.txt
-
-      - name: 显示完整诊断报告
-        run: |
-          echo "📊 诊断报告完成"
-          echo "=========================================="
-          echo "如果所有测试都失败，可能的原因:"
-          echo "1. 🔒 网站需要特定认证或Token"
-          echo "2. 🌐 GitHub Actions的IP被封锁"
-          echo "3. 🚫 URL已失效或变更"
-          echo "4. ⏰ 网站临时不可用"
-          echo "5. 🛡️  Cloudflare/WAF防护"
-          echo ""
-          echo "建议解决方案:"
-          echo "1. 手动访问URL确认是否可用"
-          echo "2. 检查是否需要API密钥"
-          echo "3. 联系网站管理员"
-          echo "4. 使用代理服务器"
-          echo "=========================================="
