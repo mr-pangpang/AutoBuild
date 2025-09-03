@@ -1,12 +1,12 @@
-name: Update Gather Content
+name: Update TVBOX Gather Source
 
 on:
-  workflow_dispatch:
+  workflow_dispatch: # 手动触发
   schedule:
-    - cron: '0 0 * * *'
+    - cron: '0 2 * * *' # 每天UTC时间02:00（北京时间10:00）运行
 
 jobs:
-  update-gather:
+  update-tvbox-source:
     runs-on: ubuntu-latest
     
     permissions:
@@ -16,21 +16,139 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Debug network connectivity
+    - name: Setup curl with retry
       run: |
-        echo "🔍 开始网络诊断..."
-        echo "目标URL: https://tv-1.iill.top/m3u/Gather"
-        
-        # 测试网络连通性
-        echo "1. 测试DNS解析..."
-        nslookup tv-1.iill.top || echo "DNS解析可能有问题"
-        
-        echo "2. 测试网络连通性..."
-        ping -c 3 tv-1.iill.top || echo "Ping测试失败（可能被禁止）"
-        
-        echo "3. 测试HTTP连接..."
-        curl -I -L --max-time 10 "https://tv-1.iill.top/m3u/Gather" || echo "HTTP连接测试失败"
+        # 安装最新版curl（确保支持重试）
+        sudo apt-get update
+        sudo apt-get install -y curl
 
-    - name: Fetch content with detailed debugging
+    - name: Fetch TVBOX source content
       run: |
-        echo "🔄
+        echo "📡 开始获取TVBOX直播源..."
+        
+        # 设置重试机制
+        max_retries=5
+        retry_count=0
+        
+        while [ $retry_count -lt $max_retries ]; do
+          echo "尝试第 $((retry_count + 1)) 次获取..."
+          
+          # 使用curl获取内容，添加TVBOX相关的User-Agent
+          curl -s -L --connect-timeout 30 --max-time 60 \
+            -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" \
+            -H "Accept: */*" \
+            -H "Accept-Language: zh-CN,zh;q=0.9,en;q=0.8" \
+            -H "Connection: keep-alive" \
+            -H "Referer: https://tv-1.iill.top/" \
+            "https://tv-1.iill.top/m3u/Gather" \
+            -o Gather.txt
+          
+          # 检查是否获取成功
+          if [ -s "Gather.txt" ]; then
+            line_count=$(wc -l < Gather.txt)
+            echo "✅ 获取成功！文件包含 $line_count 行"
+            
+            # 检查是否是有效的M3U文件
+            if head -n 5 Gather.txt | grep -q "#EXTM3U"; then
+              echo "🎯 验证通过：是有效的M3U文件"
+              break
+            else
+              echo "⚠️  文件格式可能不是标准M3U，但内容不为空"
+              # 显示文件开头内容
+              echo "文件开头内容："
+              head -n 3 Gather.txt
+              break
+            fi
+          else
+            retry_count=$((retry_count + 1))
+            echo "❌ 第 $retry_count 次获取失败，等待重试..."
+            sleep 10
+          fi
+        done
+        
+        # 最终检查
+        if [ ! -s "Gather.txt" ]; then
+          echo "❌ 所有重试都失败，创建错误提示文件"
+          cat > Gather.txt << 'EOF'
+#EXTM3U
+#EXTINF:-1 tvg-id="" tvg-name="错误提示" tvg-logo="" group-title="Error",获取直播源失败
+https://example.com/error.m3u8
+
+# 更新时间: $(date +"%Y-%m-%d %H:%M:%S")
+# 错误信息: 无法从 https://tv-1.iill.top/m3u/Gather 获取内容
+# 请检查网络连接或源地址是否有效
+EOF
+        fi
+
+    - name: Validate and format M3U file
+      run: |
+        echo "🔍 验证文件格式..."
+        
+        # 确保文件以UTF-8编码保存
+        if [ -s "Gather.txt" ]; then
+          # 检查文件编码并转换为UTF-8（如果需要）
+          file_encoding=$(file -b --mime-encoding Gather.txt)
+          echo "文件编码: $file_encoding"
+          
+          if [ "$file_encoding" != "utf-8" ] && [ "$file_encoding" != "us-ascii" ]; then
+            echo "转换编码到UTF-8..."
+            iconv -f "$file_encoding" -t utf-8 Gather.txt > Gather_utf8.txt
+            mv Gather_utf8.txt Gather.txt
+          fi
+          
+          # 添加文件头信息（如果不存在）
+          if ! grep -q "^#EXTM3U" Gather.txt; then
+            echo "添加M3U文件头..."
+            echo "#EXTM3U" | cat - Gather.txt > temp.txt
+            mv temp.txt Gather.txt
+          fi
+          
+          # 添加更新时间注释
+          echo "# 最后更新时间: $(date +"%Y-%m-%d %H:%M:%S")" >> Gather.txt
+          echo "# 更新方式: GitHub Actions自动更新" >> Gather.txt
+          echo "# 源地址: https://tv-1.iill.top/m3u/Gather" >> Gather.txt
+        fi
+
+    - name: Display file info
+      run: |
+        echo "📊 文件信息："
+        echo "文件大小: $(wc -c < Gather.txt) 字节"
+        echo "文件行数: $(wc -l < Gather.txt) 行"
+        echo "文件类型: $(file -b Gather.txt)"
+        echo "前5行内容："
+        head -n 5 Gather.txt
+        echo "后3行内容："
+        tail -n 3 Gather.txt
+
+    - name: Commit and push changes
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        
+        # 检查是否有变化
+        if git diff --quiet Gather.txt; then
+          echo "🟢 内容无变化，无需提交"
+        else
+          echo "🔄 检测到变化，准备提交..."
+          git add Gather.txt
+          git commit -m "📺 自动更新TVBOX直播源 $(date +'%Y-%m-%d %H:%M:%S')"
+          git push
+          echo "✅ 直播源已更新并推送到仓库"
+        fi
+
+    - name: Create summary
+      if: always()
+      run: |
+        echo "## TVBOX直播源更新结果" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**更新时间**: $(date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        if [ -s "Gather.txt" ]; then
+          line_count=$(wc -l < Gather.txt)
+          echo "**文件状态**: ✅ 获取成功 ($line_count 行)" >> $GITHUB_STEP_SUMMARY
+          echo "**文件预览**: \`$(head -n 2 Gather.txt | tr '\n' ' ')\`" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "**文件状态**: ❌ 获取失败" >> $GITHUB_STEP_SUMMARY
+        fi
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**源地址**: https://tv-1.iill.top/m3u/Gather" >> $GITHUB_STEP_SUMMARY
