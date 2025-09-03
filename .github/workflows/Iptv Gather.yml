@@ -1,11 +1,11 @@
-name: 自动创建disk仓库并保存TV.txt
+name: 下载TV.txt并转存到disk仓库
 on:
   push:
-    branches: [main]
+    branches: [main]  # 触发分支，可改为workflow_dispatch手动触发
   workflow_dispatch:
 
 jobs:
-  create-and-save:
+  download-and-save:
     runs-on: ubuntu-latest
     steps:
       - name: 拉取当前仓库（Live）代码
@@ -13,36 +13,36 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: 生成/处理TV.txt文件
+      - name: 从指定链接下载TV.txt
         run: |
-          # 替换为你的实际生成命令
-          echo "TV.txt内容示例" > TV.txt
+          # 使用curl下载文件，-f确保下载失败时报错，-o指定保存文件名
+          curl -f -o TV.txt "http://123.56.43.183/tv/TV.txt"
+          echo "下载完成，文件大小：$(du -h TV.txt)"
 
       - name: 检查disk仓库是否存在（调用GitHub API）
         id: check_repo
         run: |
-          # 调用API检查仓库是否存在，返回200为存在，404为不存在
           RESPONSE=$(curl -s -w "%{http_code}" -H "Authorization: token ${{ secrets.PAT_TOKEN }}" "https://api.github.com/repos/mr-pangpang/disk")
           HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
           echo "repo_exists=$([ "$HTTP_CODE" -eq 200 ] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
 
-      - name: 若仓库不存在则创建（调用GitHub API）
+      - name: 若仓库不存在则创建
         if: steps.check_repo.outputs.repo_exists == 'false'
         run: |
-          # 创建仓库（默认公共，如需私有，添加"private": true）
           curl -X POST -H "Authorization: token ${{ secrets.PAT_TOKEN }}" \
           -H "Content-Type: application/json" \
           -d '{"name": "disk", "auto_init": true}' \
           "https://api.github.com/user/repos"
 
-      - name: 克隆disk仓库（无论是否新创建）
+      - name: 克隆disk仓库
         run: |
           git clone https://${{ secrets.PAT_TOKEN }}@github.com/mr-pangpang/disk.git target-repo
 
-      - name: 创建目标路径并移动文件
+      - name: 移动文件到目标路径
         run: |
           mkdir -p target-repo/TV
           mv TV.txt target-repo/TV/
+          echo "文件已移动到：target-repo/TV/TV.txt"
 
       - name: 提交并推送disk仓库变更
         run: |
@@ -50,5 +50,5 @@ jobs:
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
           git add TV/TV.txt
-          git commit -m "自动保存TV.txt到TV目录" || echo "无文件变更，无需提交"
+          git commit -m "自动下载并保存TV.txt（来源：http://123.56.43.183/tv/TV.txt）" || echo "无文件变更，无需提交"
           git push https://${{ secrets.PAT_TOKEN }}@github.com/mr-pangpang/disk.git HEAD:main
