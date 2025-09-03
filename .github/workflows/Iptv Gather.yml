@@ -1,166 +1,42 @@
-name: Clone Gather to Repository
+name: Simple Gather Test
 
 on:
-  schedule:
-    - cron: '0 0 * * *'  # 每天UTC时间0点执行
-  workflow_dispatch:  # 手动触发
+  workflow_dispatch:
 
 jobs:
-  clone-gather:
+  test-simple:
     runs-on: ubuntu-latest
     permissions:
       contents: write
     
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  # 获取完整历史
 
-      - name: Clone content from source
-        id: clone-content
+      - name: Create simple file
         run: |
-          echo "🔄 Cloning content from: https://tv-1.iill.top/m3u/Gather"
-          
-          # 设置超时和重试参数
-          max_retries=3
-          timeout=30
-          success=false
-          
-          for i in $(seq 1 $max_retries); do
-            echo "Attempt $i of $max_retries..."
-            
-            # 使用curl下载内容
-            if curl -sSfL --connect-timeout $timeout --max-time $timeout \
-               -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" \
-               -H "Accept: text/plain, */*" \
-               -H "Referer: https://tv-1.iill.top/" \
-               "https://tv-1.iill.top/m3u/Gather" -o "Gather.txt.tmp"; then
-               
-              # 检查文件是否非空
-              if [ -s "Gather.txt.tmp" ]; then
-                mv "Gather.txt.tmp" "Gather.txt"
-                success=true
-                echo "✅ Content cloned successfully"
-                break
-              else
-                echo "❌ Downloaded file is empty, retrying..."
-                rm -f "Gather.txt.tmp"
-              fi
-            else
-              echo "❌ Download failed, retrying..."
-            fi
-            
-            # 如果不是最后一次尝试，等待一下再重试
-            if [ $i -lt $max_retries ]; then
-              sleep 2
-            fi
-          done
-          
-          if [ "$success" = false ]; then
-            echo "❌ All download attempts failed"
-            # 创建备份文件
-            cat > "Gather.txt" << 'EOF'
+          echo "📝 Creating simple test file..."
+          cat > Gather.txt << 'EOF'
 #EXTM3U
-# Cloning failed - using backup content
-# Source: https://tv-1.iill.top/m3u/Gather
-# Time: $(date -u +'%Y-%m-%d %H:%M UTC')
-
-#EXTINF:-1 tvg-id="backup1" tvg-name="Backup Channel 1" group-title="Backup",Backup Channel 1
-http://example.com/backup1.m3u8
-#EXTINF:-1 tvg-id="backup2" tvg-name="Backup Channel 2" group-title="Backup",Backup Channel 2
-http://example.com/backup2.m3u8
+#EXTINF:-1,Test Channel 1
+http://example.com/stream1
+#EXTINF:-1,Test Channel 2
+http://example.com/stream2
 EOF
-            echo "📝 Created backup file"
-          fi
-          
-          # 输出文件信息
-          echo "file_size=$(wc -c < Gather.txt)" >> $GITHUB_OUTPUT
-          echo "line_count=$(wc -l < Gather.txt)" >> $GITHUB_OUTPUT
-          echo "success=$success" >> $GITHUB_OUTPUT
+          echo "✅ File created successfully"
 
-      - name: Verify cloned content
+      - name: List files
         run: |
-          echo "🔍 Verifying cloned content..."
-          echo "File: Gather.txt"
-          echo "Size: ${{ steps.clone-content.outputs.file_size }} bytes"
-          echo "Lines: ${{ steps.clone-content.outputs.line_count }}"
-          echo "Success: ${{ steps.clone-content.outputs.success }}"
-          
-          # 显示文件开头部分
-          echo "First few lines:"
-          head -n 3 "Gather.txt" || echo "Cannot read file"
-          
-          # 检查是否为M3U格式
-          if head -n 1 "Gather.txt" | grep -q "^#EXTM3U"; then
-            echo "✅ Valid M3U format detected"
-          else
-            echo "⚠️ Not a standard M3U format"
-          fi
+          echo "📁 Current directory files:"
+          ls -la
+          echo "Gather.txt content:"
+          cat Gather.txt
 
-      - name: Check for changes
-        id: check-changes
+      - name: Commit file
         run: |
-          # 检查文件是否有变化
-          if git diff --quiet "Gather.txt"; then
-            echo "🟢 No changes detected"
-            echo "has_changes=false" >> $GITHUB_OUTPUT
-          else
-            echo "🔵 Changes detected in Gather.txt"
-            echo "has_changes=true" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Commit and push changes
-        if: steps.check-changes.outputs.has_changes == 'true'
-        run: |
-          echo "📤 Committing changes to repository..."
-          
-          # 配置Git
           git config --global user.name "GitHub Actions Bot"
           git config --global user.email "actions@users.noreply.github.com"
-          
-          # 添加文件
-          git add "Gather.txt"
-          
-          # 创建提交信息
-          commit_time=$(TZ='Asia/Shanghai' date '+%Y-%m-%d %H:%M CST')
-          file_size=${{ steps.clone-content.outputs.file_size }}
-          line_count=${{ steps.clone-content.outputs.line_count }}
-          success=${{ steps.clone-content.outputs.success }}
-          
-          if [ "$success" = "true" ]; then
-            commit_msg="📺 Cloned Gather content - $commit_time | $line_count lines | $file_size bytes"
-          else
-            commit_msg="⚠️ Gather clone failed - using backup - $commit_time"
-          fi
-          
-          # 提交更改
-          git commit -m "$commit_msg"
-          
-          # 推送到仓库
+          git add Gather.txt
+          git commit -m "✅ Add test Gather file" || echo "No changes to commit"
           git push origin ${{ github.ref }}
-          
-          echo "✅ Successfully committed and pushed: $commit_msg"
-
-      - name: No changes notification
-        if: steps.check-changes.outputs.has_changes == 'false'
-        run: |
-          echo "ℹ️ No changes in Gather content, skipping commit"
-          echo "Current file info:"
-          echo "Size: ${{ steps.clone-content.outputs.file_size }} bytes"
-          echo "Lines: ${{ steps.clone-content.outputs.line_count }}"
-          echo "Source: https://tv-1.iill.top/m3u/Gather"
-
-      - name: Final status report
-        run: |
-          echo "========================================"
-          echo "🎉 Gather Clone Process Complete"
-          echo "========================================"
-          echo "Source URL: https://tv-1.iill.top/m3u/Gather"
-          echo "Target File: Gather.txt"
-          echo "Status: ${{ steps.clone-content.outputs.success }}"
-          echo "File Size: ${{ steps.clone-content.outputs.file_size }} bytes"
-          echo "Line Count: ${{ steps.clone-content.outputs.line_count }} lines"
-          echo "Changes Made: ${{ steps.check-changes.outputs.has_changes }}"
-          echo "Time: $(TZ='Asia/Shanghai' date '+%Y-%m-%d %H:%M:%S CST')"
-          echo "========================================"
+          echo "🎉 Process completed successfully"
