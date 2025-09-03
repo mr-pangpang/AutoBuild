@@ -1,56 +1,47 @@
-name: Update TVBOX Source
+name: TVBOX Source Backup
 
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 2 * * *'  # 每天UTC时间02:00（北京时间10:00）
+    - cron: '0 2 * * *'
 
 jobs:
-  update-source:
-    runs-on: ubuntu-latest
+  backup:
+    runs-on: windows-latest  # 使用Windows环境
     
     permissions:
       contents: write
     
     steps:
-    - name: Checkout code
+    - name: Checkout
       uses: actions/checkout@v4
 
-    - name: Download TVBOX source
+    - name: Download using PowerShell
+      shell: pwsh
       run: |
-        echo "开始下载直播源..."
-        # 使用wget尝试下载
-        wget --timeout=30 --tries=3 -O Gather.txt "https://tv-1.iill.top/m3u/Gather" || true
-        
-        # 如果wget失败，使用curl再试一次
-        if [ ! -s Gather.txt ]; then
-          echo "wget失败，尝试使用curl..."
-          curl -s -L --max-time 30 -o Gather.txt "https://tv-1.iill.top/m3u/Gather" || true
-        fi
+        Write-Host "正在下载直播源..."
+        try {
+          # 使用PowerShell下载
+          $url = "https://tv-1.iill.top/m3u/Gather"
+          Invoke-WebRequest -Uri $url -OutFile "Gather.txt" -TimeoutSec 30
+          
+          if (Test-Path "Gather.txt" -And (Get-Item "Gather.txt").Length -gt 0) {
+            Write-Host "✅ 下载成功！"
+            $lineCount = (Get-Content "Gather.txt" | Measure-Object -Line).Lines
+            Write-Host "文件行数: $lineCount"
+          } else {
+            throw "下载失败"
+          }
+        }
+        catch {
+          Write-Host "❌ 下载失败: $($_.Exception.Message)"
+          Set-Content -Path "Gather.txt" -Value "#EXTM3U`n# 下载失败于 $(Get-Date)"
+        }
 
-        # 检查是否下载成功
-        if [ -s Gather.txt ]; then
-          echo "✅ 下载成功！"
-          echo "文件行数: $(wc -l < Gather.txt)"
-          echo "文件大小: $(wc -c < Gather.txt) 字节"
-        else
-          echo "❌ 下载失败，创建空文件"
-          echo "#EXTM3U" > Gather.txt
-          echo "# 下载失败于 $(date)" >> Gather.txt
-        fi
-
-    - name: Setup Git
+    - name: Commit changes
       run: |
         git config user.name "github-actions[bot]"
         git config user.email "github-actions[bot]@users.noreply.github.com"
-
-    - name: Commit and push
-      run: |
         git add Gather.txt
-        if ! git diff --staged --quiet; then
-          git commit -m "Update TVBOX source - $(date +'%Y-%m-%d %H:%M')"
-          git push
-          echo "✅ 更新已推送"
-        else
-          echo "🟡 无变化，跳过提交"
-        fi
+        git commit -m "Update TVBOX source" || echo "无变化"
+        git push
