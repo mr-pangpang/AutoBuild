@@ -1,15 +1,145 @@
-name: Basic Test
+name: Gather Mirror Download
 
 on:
-  workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * *'  # 每天UTC时间0点执行
+  workflow_dispatch:  # 手动触发
 
 jobs:
-  basic-test:
+  download-gather:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     
     steps:
-      - name: Run simple command
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup mirrors list
         run: |
-          echo "🚀 GitHub Actions is working!"
-          echo "Current date: $(date)"
-          echo "Runner OS: $RUNNER_OS"
+          # 定义镜像列表
+          mirrors=(
+            "https://gh.xxooo.cf/"
+            "https://ghproxy.net/"
+            "https://ghfast.top/"
+            "https://gh-proxy.com/"
+            "https://raw.iqiq.io/"
+          )
+          
+          # 将镜像列表保存为环境变量
+          echo "mirrors=${mirrors[*]}" >> $GITHUB_ENV
+          echo "original_url=https://tv-1.iill.top/m3u/Gather" >> $GITHUB_ENV
+
+      - name: Try original URL first
+        id: download_original
+        run: |
+          echo "🔄 Trying original URL: $original_url"
+          if curl -sSfL --connect-timeout 30 --max-time 60 \
+             -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" \
+             "$original_url" -o "Gather.txt" && [ -s "Gather.txt" ]; then
+            echo "✅ Original URL download successful"
+            echo "success=true" >> $GITHUB_OUTPUT
+            echo "source=original" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Original URL failed"
+            echo "success=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Try mirror URLs if original failed
+        if: steps.download_original.outputs.success == 'false'
+        id: download_mirror
+        run: |
+          echo "🔄 Trying mirror URLs..."
+          IFS=' ' read -ra mirror_array <<< "$mirrors"
+          success=false
+          source=""
+          
+          for mirror in "${mirror_array[@]}"; do
+            if [ "$success" = "false" ]; then
+              echo "Trying mirror: $mirror"
+              full_url="${mirror}${original_url}"
+              
+              if curl -sSfL --connect-timeout 20 --max-time 40 \
+                 -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" \
+                 "$full_url" -o "Gather.txt" && [ -s "Gather.txt" ]; then
+                echo "✅ Mirror successful: $mirror"
+                success=true
+                source="$mirror"
+                break
+              else
+                echo "❌ Mirror failed: $mirror"
+                rm -f Gather.txt  # 清理失败的文件
+              fi
+            fi
+          done
+          
+          if [ "$success" = "true" ]; then
+            echo "success=true" >> $GITHUB_OUTPUT
+            echo "source=$source" >> $GITHUB_OUTPUT
+          else
+            echo "success=false" >> $GITHUB_OUTPUT
+            echo "❌ All mirrors failed"
+          fi
+
+      - name: Create backup if all downloads failed
+        if: steps.download_original.outputs.success == 'false' && steps.download_mirror.outputs.success == 'false'
+        run: |
+          echo "⚠️ All download attempts failed, creating backup file"
+          cat > Gather.txt << 'EOF'
+#EXTM3U
+#EXTINF:-1 tvg-id="example" tvg-name="Example Channel" tvg-logo="https://example.com/logo.png" group-title="General",Example Channel
+http://example.com/stream.m3u8
+#EXTINF:-1 tvg-id="test" tvg-name="Test Channel" tvg-logo="https://example.com/test.png" group-title="General",Test Channel  
+http://example.com/test.m3u8
+EOF
+          echo "source=backup" >> $GITHUB_ENV
+        else
+          run: |
+            echo "source=${{ steps.download_original.outputs.source || steps.download_mirror.outputs.source }}" >> $GITHUB_ENV
+
+      - name: Validate and commit file
+        run: |
+          echo "📊 File validation:"
+          echo "Source: ${{ env.source }}"
+          echo "File size: $(wc -c < Gather.txt) bytes"
+          echo "Line count: $(wc -l < Gather.txt) lines"
+          
+          # 检查是否为有效的M3U文件
+          if head -n 1 Gather.txt | grep -q "^#EXTM3U"; then
+            echo "✅ Valid M3U file detected"
+            is_valid=true
+          else
+            echo "⚠️ Not a standard M3U file"
+            is_valid=false
+          fi
+          
+          # 配置Git
+          git config --global user.name "GitHub Actions Bot"
+          git config --global user.email "actions@users.noreply.github.com"
+          
+          # 添加文件
+          git add Gather.txt
+          
+          # 提交信息
+          commit_time=$(TZ='Asia/Shanghai' date '+%Y-%m-%d %H:%M CST')
+          if [ "$is_valid" = "true" ]; then
+            commit_msg="✅ Gather updated via ${{ env.source }} - $commit_time"
+          else
+            commit_msg="⚠️ Gather backup created - $commit_time"
+          fi
+          
+          git commit -m "$commit_msg" || exit 0
+          git push origin ${{ github.ref }}
+          
+          echo "🎉 $commit_msg"
+
+      - name: Show final status
+        run: |
+          echo "========================================"
+          echo "📋 Download Status Report"
+          echo "Source: ${{ env.source }}"
+          echo "Original URL: ${{ env.original_url }}"
+          echo "File: Gather.txt"
+          echo "Size: $(wc -c < Gather.txt) bytes"
+          echo "Time: $(TZ='Asia/Shanghai' date '+%Y-%m-%d %H:%M:%S CST')"
+          echo "========================================"
