@@ -1,27 +1,60 @@
-name: Test TVBOX Download
+name: Update TVBOX Gather Source
 
-on: workflow_dispatch
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 2 * * *'
 
 jobs:
-  test:
+  update-tvbox:
     runs-on: windows-latest
     
+    permissions:
+      contents: write
+    
     steps:
-    - name: Test curl download
-      shell: cmd
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Download TVBOX source
+      shell: pwsh
       run: |
-        echo 测试curl下载...
-        curl -s -L "https://tv-1.iill.top/m3u/Gather" -o test.txt
+        Write-Host "🚀 开始下载直播源..."
         
-        echo 下载结果：
-        if exist test.txt (
-          echo 文件已创建
-          echo 文件大小: 
-          for /f %%i in ('dir /-c test.txt ^| find "test.txt"') do echo %%i
-          echo 前3行内容：
-          set /p line1=<test.txt
-          echo 1: !line1!
-          more +1 test.txt | head -2
-        ) else (
-          echo 文件创建失败
-        )
+        # 使用curl下载
+        curl -s -L "https://tv-1.iill.top/m3u/Gather" -o Gather.txt
+        
+        # 修正的语法：分开判断
+        if (Test-Path "Gather.txt") {
+            $file = Get-Item "Gather.txt"
+            if ($file.Length -gt 0) {
+                $lineCount = (Get-Content "Gather.txt" | Measure-Object -Line).Lines
+                Write-Host "✅ 下载成功！文件共 $lineCount 行"
+                
+                # 显示文件开头内容
+                Write-Host "文件开头内容："
+                Get-Content "Gather.txt" -First 3 | ForEach-Object { Write-Host "  $_" }
+            } else {
+                Write-Host "❌ 文件为空"
+                Set-Content -Path "Gather.txt" -Value "#EXTM3U`n# 空文件 - $(Get-Date)"
+            }
+        } else {
+            Write-Host "❌ 文件创建失败"
+            Set-Content -Path "Gather.txt" -Value "#EXTM3U`n# 创建失败 - $(Get-Date)"
+        }
+
+    - name: Configure Git
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+
+    - name: Commit and push
+      run: |
+        git add Gather.txt
+        if ! git diff --staged --quiet; then
+          git commit -m "📺 更新TVBOX直播源 $(date +'%Y-%m-%d %H:%M')"
+          git push
+          echo "✅ 更新完成！"
+        else
+          echo "🟡 内容无变化，跳过提交"
+        fi
