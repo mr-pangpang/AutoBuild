@@ -1,45 +1,54 @@
-name: 自动保存TV.txt到DISK/TV目录
+name: 自动创建disk仓库并保存TV.txt
 on:
   push:
-    branches: [main]  # 替换为你的主分支
+    branches: [main]
   workflow_dispatch:
 
 jobs:
-  save-file:
+  create-and-save:
     runs-on: ubuntu-latest
     steps:
-      - name: 拉取仓库代码
+      - name: 拉取当前仓库（Live）代码
         uses: actions/checkout@v4
         with:
           persist-credentials: false
 
-      - name: 创建目标目录（DISK/TV）
-        run: mkdir -p DISK/TV && echo "创建目录成功，路径：$(pwd)/DISK/TV"
-
       - name: 生成/处理TV.txt文件
         run: |
-          # 替换为你的实际生成命令，确保输出到当前目录（TV.txt）
-          echo "这里是TV.txt的内容" > TV.txt  # 示例：本地生成
-          # 若为下载：curl -o TV.txt "https://example.com/source.txt"
+          # 替换为你的实际生成命令
+          echo "TV.txt内容示例" > TV.txt
 
-      - name: 检查TV.txt是否存在
+      - name: 检查disk仓库是否存在（调用GitHub API）
+        id: check_repo
         run: |
-          if [ -f "TV.txt" ]; then
-            echo "TV.txt已存在，路径：$(pwd)/TV.txt"
-          else
-            echo "错误：未找到TV.txt，请检查生成步骤"
-            exit 1
-          fi
+          # 调用API检查仓库是否存在，返回200为存在，404为不存在
+          RESPONSE=$(curl -s -w "%{http_code}" -H "Authorization: token ${{ secrets.PAT_TOKEN }}" "https://api.github.com/repos/mr-pangpang/disk")
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          echo "repo_exists=$([ "$HTTP_CODE" -eq 200 ] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
 
-      - name: 移动文件到目标路径
+      - name: 若仓库不存在则创建（调用GitHub API）
+        if: steps.check_repo.outputs.repo_exists == 'false'
         run: |
-          mv TV.txt DISK/TV/
-          echo "移动完成，目标路径：$(pwd)/DISK/TV/TV.txt"
+          # 创建仓库（默认公共，如需私有，添加"private": true）
+          curl -X POST -H "Authorization: token ${{ secrets.PAT_TOKEN }}" \
+          -H "Content-Type: application/json" \
+          -d '{"name": "disk", "auto_init": true}' \
+          "https://api.github.com/user/repos"
 
-      - name: 提交并推送变更
+      - name: 克隆disk仓库（无论是否新创建）
         run: |
+          git clone https://${{ secrets.PAT_TOKEN }}@github.com/mr-pangpang/disk.git target-repo
+
+      - name: 创建目标路径并移动文件
+        run: |
+          mkdir -p target-repo/TV
+          mv TV.txt target-repo/TV/
+
+      - name: 提交并推送disk仓库变更
+        run: |
+          cd target-repo
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
-          git add DISK/TV/TV.txt
-          git commit -m "自动保存TV.txt到DISK/TV目录" || echo "无文件变更，无需提交"
-          git push https://${{ secrets.PAT_TOKEN }}@github.com/mr-pangpang/Live.git HEAD:main
+          git add TV/TV.txt
+          git commit -m "自动保存TV.txt到TV目录" || echo "无文件变更，无需提交"
+          git push https://${{ secrets.PAT_TOKEN }}@github.com/mr-pangpang/disk.git HEAD:main
