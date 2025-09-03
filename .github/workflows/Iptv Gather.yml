@@ -1,54 +1,27 @@
-name: Update TVBOX Source with PowerShell
+name: Test TVBOX Download
 
-on:
-  workflow_dispatch:
-  schedule:
-    - cron: '0 2 * * *'
+on: workflow_dispatch
 
 jobs:
-  update:
+  test:
     runs-on: windows-latest
     
-    permissions:
-      contents: write
-    
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Download with curl (PowerShell)
-      shell: pwsh
+    - name: Test curl download
+      shell: cmd
       run: |
-        Write-Host "🚀 开始下载直播源..."
+        echo 测试curl下载...
+        curl -s -L "https://tv-1.iill.top/m3u/Gather" -o test.txt
         
-        # 使用curl命令（与本地bat一致）
-        curl -s -L "https://tv-1.iill.top/m3u/Gather" -o Gather.txt
-        
-        if (Test-Path "Gather.txt" -And (Get-Item "Gather.txt").Length -gt 0) {
-            $lineCount = (Get-Content "Gather.txt" | Measure-Object -Line).Lines
-            Write-Host "✅ 下载成功！文件共 $lineCount 行"
-            
-            # 显示文件开头内容
-            $firstLines = Get-Content "Gather.txt" -First 3
-            Write-Host "文件开头内容："
-            $firstLines | ForEach-Object { Write-Host "  $_" }
-        } else {
-            Write-Host "❌ 下载失败，创建空文件"
-            Set-Content -Path "Gather.txt" -Value "#EXTM3U`n# 下载失败时间: $(Get-Date)"
-        }
-
-    - name: Commit changes
-      shell: pwsh
-      run: |
-        git config user.name "github-actions[bot]"
-        git config user.email "github-actions[bot]@users.noreply.github.com"
-        
-        git add Gather.txt
-        $hasChanges = git status --porcelain
-        if ($hasChanges) {
-            git commit -m "📺 自动更新TVBOX直播源 $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
-            git push
-            Write-Host "✅ 更新完成！"
-        } else {
-            Write-Host "🟡 内容无变化，跳过提交"
-        }
+        echo 下载结果：
+        if exist test.txt (
+          echo 文件已创建
+          echo 文件大小: 
+          for /f %%i in ('dir /-c test.txt ^| find "test.txt"') do echo %%i
+          echo 前3行内容：
+          set /p line1=<test.txt
+          echo 1: !line1!
+          more +1 test.txt | head -2
+        ) else (
+          echo 文件创建失败
+        )
