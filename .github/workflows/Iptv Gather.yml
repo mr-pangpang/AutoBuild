@@ -1,134 +1,121 @@
-name: Iptv Gather
+name: Gather Auto-Build
 
 on:
   schedule:
     - cron: '0 0 * * *'  # 每天UTC凌晨执行
-  workflow_dispatch:  # 手动触发优先测试
+  workflow_dispatch:  # 手动触发
 
 jobs:
-  save-tv:
+  save-gather:
     runs-on: ubuntu-latest
     permissions:
-      contents: write  # 明确授予写入权限
+      contents: write  # 授予写入权限
+    
     steps:
-      - name: 拉取仓库代码（完整历史）
+      - name: 检出代码
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # 确保拉取所有分支历史，避免对比错误
-          ref: ${{ github.ref }}  # 拉取当前触发分支（默认主分支）
+          fetch-depth: 0  # 拉取完整历史
 
-      - name: 创建TV子目录
-        run: |
-          mkdir -p TV  # 创建TV目录（如果不存在）
-
-      - name: 下载TV文件到TV子目录
-        run: |
-          echo "开始下载文件到TV子目录: http://123.56.43.183/tv/TV.txt"
-          # 下载到TV子目录
-          curl -v --retry 3 --max-time 30 "http://123.56.43.183/tv/TV.txt" -o "TV/TV.txt"
-          
-          # 强制检查下载结果
-          if [ ! -f "TV/TV.txt" ]; then
-            echo "❌ TV.txt下载失败，文件未创建"
-            exit 1
-          fi
-
-      - name: 下载Gather文件到根目录
+      - name: 下载Gather文件
         run: |
           echo "开始下载Gather文件: https://tv-1.iill.top/m3u/Gather"
-          # 下载Gather文件到根目录
-          curl -v --retry 3 --max-time 30 "https://tv-1.iill.top/m3u/Gather" -o "Gather.txt"
           
-          # 强制检查下载结果
+          # 下载文件
+          curl -sSf --retry 3 --max-time 60 \
+            -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" \
+            "https://tv-1.iill.top/m3u/Gather" -o "Gather.txt"
+          
+          # 检查下载结果
           if [ ! -f "Gather.txt" ]; then
-            echo "❌ Gather.txt下载失败，文件未创建"
-            exit 1
-          fi
-
-      - name: 验证文件内容（非空检查）
-        run: |
-          echo "验证TV/TV.txt内容..."
-          if [ -s "TV/TV.txt" ]; then
-            echo "TV.txt文件大小: $(du -h TV/TV.txt)"
-            echo "TV.txt前3行内容: $(head -n 3 TV/TV.txt | tr '\n' ' ')"
-          else
-            echo "❌ TV/TV.txt内容为空，终止流程"
+            echo "❌ Gather.txt下载失败"
             exit 1
           fi
           
-          echo "验证Gather.txt内容..."
-          if [ -s "Gather.txt" ]; then
-            echo "Gather.txt文件大小: $(du -h Gather.txt)"
-            echo "Gather.txt前3行内容: $(head -n 3 Gather.txt | tr '\n' ' ')"
-          else
-            echo "❌ Gather.txt内容为空，终止流程"
+          echo "✅ 下载完成"
+
+      - name: 验证文件内容
+        run: |
+          echo "验证Gather.txt文件..."
+          
+          # 检查文件是否为空
+          if [ ! -s "Gather.txt" ]; then
+            echo "❌ Gather.txt内容为空"
             exit 1
           fi
-
-      - name: 检查文件状态
-        id: file_status
-        run: |
-          need_commit_tv=false
-          need_commit_gather=false
           
-          # 检查TV.txt状态
-          if [ ! -f "TV/TV.txt" ]; then
-            echo "TV状态: 文件不存在，需创建"
-            need_commit_tv=true
-          elif ! git ls-files --error-unmatch "TV/TV.txt" > /dev/null 2>&1; then
-            echo "TV状态: 新文件，需提交"
-            need_commit_tv=true
-          elif ! git diff --quiet "TV/TV.txt"; then
-            echo "TV状态: 内容有更新"
-            need_commit_tv=true
-          else
-            echo "TV状态: 内容无变化"
-          fi
+          # 显示文件信息
+          file_size=$(du -h "Gather.txt" | cut -f1)
+          line_count=$(wc -l < "Gather.txt")
           
-          # 检查Gather.txt状态
-          if [ ! -f "Gather.txt" ]; then
-            echo "Gather状态: 文件不存在，需创建"
-            need_commit_gather=true
-          elif ! git ls-files --error-unmatch "Gather.txt" > /dev/null 2>&1; then
-            echo "Gather状态: 新文件，需提交"
-            need_commit_gather=true
-          elif ! git diff --quiet "Gather.txt"; then
-            echo "Gather状态: 内容有更新"
-            need_commit_gather=true
-          else
-            echo "Gather状态: 内容无变化"
-          fi
+          echo "📊 文件大小: $file_size"
+          echo "📈 行数: $line_count"
+          echo "🔍 前2行预览:"
+          head -n 2 "Gather.txt"
           
-          # 输出是否需要提交
-          if [ "$need_commit_tv" = true ] || [ "$need_commit_gather" = true ]; then
-            echo "need_commit=true" >> $GITHUB_OUTPUT
-            echo "commit_message=Auto-update: $(TZ='Asia/Shanghai' date +'%Y-%m-%d %H:%M CST')" >> $GITHUB_OUTPUT
+          # 检查是否为有效的M3U格式
+          if ! head -n 1 "Gather.txt" | grep -q "^#EXTM3U"; then
+            echo "⚠️  警告: 文件可能不是标准的M3U格式"
           else
-            echo "need_commit=false" >> $GITHUB_OUTPUT
+            echo "✅ 检测到标准M3U格式"
           fi
 
-      - name: 提交并推送
-        if: steps.file_status.outputs.need_commit == 'true'
+      - name: 检查文件变更
+        id: check_changes
         run: |
-          # 配置Git身份
+          # 检查文件是否存在于git中
+          if git ls-files --error-unmatch "Gather.txt" >/dev/null 2>&1; then
+            # 文件已存在，检查是否有变化
+            if git diff --quiet "Gather.txt"; then
+              echo "🟢 Gather.txt内容无变化"
+              echo "has_changes=false" >> $GITHUB_OUTPUT
+            else
+              echo "🔵 Gather.txt内容有更新"
+              echo "has_changes=true" >> $GITHUB_OUTPUT
+            fi
+          else
+            # 新文件
+            echo "🟡 Gather.txt是新文件"
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: 提交更新
+        if: steps.check_changes.outputs.has_changes == 'true'
+        run: |
+          # 配置Git
           git config --global user.name "GitHub Actions Bot"
-          git config --global user.email "actions-bot@github.com"
+          git config --global user.email "actions@users.noreply.github.com"
           
-          # 添加所有变更文件
-          git add .
+          # 添加文件
+          git add Gather.txt
+          
+          # 生成提交信息
+          commit_time=$(TZ='Asia/Shanghai' date '+%Y-%m-%d %H:%M CST')
+          line_count=$(wc -l < "Gather.txt")
+          file_size=$(du -h "Gather.txt" | cut -f1)
+          
+          commit_msg="📺 更新Gather列表 - $commit_time
+          行数: $line_count | 大小: $file_size
+          来源: https://tv-1.iill.top/m3u/Gather"
           
           # 提交
-          commit_msg="${{ steps.file_status.outputs.commit_message }}"
-          if ! git commit -m "$commit_msg"; then
-            echo "⚠️ 提交命令返回错误，尝试强制提交"
-            git commit -m "$commit_msg" --allow-empty
-          fi
+          git commit -m "$commit_msg"
           
           # 推送
-          git push origin ${{ github.ref_name }}
-          echo "✅ 已推送至分支: ${{ github.ref_name }}"
+          git push origin ${{ github.ref }}
+          
+          echo "✅ 已成功提交并推送更新"
 
       - name: 无更新提示
-        if: steps.file_status.outputs.need_commit == 'false'
+        if: steps.check_changes.outputs.has_changes == 'false'
         run: |
-          echo "ℹ️ 所有文件内容无变化，无需提交"
+          echo "ℹ️ Gather.txt内容无变化，无需更新"
+          echo "当前文件信息:"
+          echo "大小: $(du -h Gather.txt | cut -f1)"
+          echo "行数: $(wc -l < Gather.txt)"
+
+      - name: 完成通知
+        run: |
+          echo "🎉 Gather自构建流程完成"
+          echo "分支: ${{ github.ref }}"
+          echo "运行时间: $(TZ='Asia/Shanghai' date '+%Y-%m-%d %H:%M:%S CST')"
