@@ -9,113 +9,144 @@ jobs:
   save-gather:
     runs-on: ubuntu-latest
     permissions:
-      contents: write  # 授予写入权限
+      contents: write
     
     steps:
       - name: 检出代码
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  # 拉取完整历史
 
-      - name: 下载Gather文件
+      - name: 调试网络连接
         run: |
-          echo "开始下载Gather文件: https://tv-1.iill.top/m3u/Gather"
+          echo "🔍 开始网络诊断..."
           
-          # 下载文件
-          curl -sSf --retry 3 --max-time 60 \
-            -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" \
-            "https://tv-1.iill.top/m3u/Gather" -o "Gather.txt"
+          # 测试域名解析
+          echo "1. 解析域名 tv-1.iill.top"
+          nslookup tv-1.iill.top || echo "⚠️  DNS解析可能有问题"
           
-          # 检查下载结果
+          # 测试网络连通性
+          echo "2. 测试网络连通性"
+          ping -c 3 tv-1.iill.top || echo "⚠️  网络连通性测试失败"
+          
+          # 测试HTTP访问
+          echo "3. 测试HTTP访问"
+          curl -I "https://tv-1.iill.top/m3u/Gather" --connect-timeout 10 || echo "⚠️  HTTP访问测试失败"
+
+      - name: 尝试多种方式下载
+        id: download
+        run: |
+          echo "🔄 尝试多种下载方式..."
+          
+          # 方法1: 标准curl
+          echo "方法1: 标准curl下载"
+          if curl -sSf --retry 2 --connect-timeout 15 --max-time 30 \
+             -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" \
+             -H "Accept: text/plain, */*" \
+             -H "Referer: https://tv-1.iill.top/" \
+             "https://tv-1.iill.top/m3u/Gather" -o "Gather.txt" && [ -s "Gather.txt" ]; then
+            echo "✅ 方法1成功"
+            exit 0
+          fi
+          
+          # 方法2: 使用wget
+          echo "方法2: 使用wget"
+          if wget --timeout=20 --tries=2 -U "Mozilla/5.0" \
+             "https://tv-1.iill.top/m3u/Gather" -O "Gather.txt" && [ -s "Gather.txt" ]; then
+            echo "✅ 方法2成功"
+            exit 0
+          fi
+          
+          # 方法3: 尝试HTTP协议
+          echo "方法3: 尝试HTTP协议"
+          if curl -sSf --retry 2 --connect-timeout 15 --max-time 30 \
+             "http://tv-1.iill.top/m3u/Gather" -o "Gather.txt" && [ -s "Gather.txt" ]; then
+            echo "✅ 方法3成功"
+            exit 0
+          fi
+          
+          # 所有方法都失败
+          echo "❌ 所有下载方法都失败"
+          echo "正在创建空文件用于测试..."
+          echo "# 无法获取内容 - $(date)" > "Gather.txt"
+          echo "created_empty=true" >> $GITHUB_OUTPUT
+          exit 1
+
+      - name: 分析下载内容
+        run: |
+          echo "📊 文件分析:"
+          if [ -f "Gather.txt" ]; then
+            echo "文件大小: $(wc -c < Gather.txt) 字节"
+            echo "文件类型: $(file -b Gather.txt || echo '未知')"
+            echo "前100字节:"
+            head -c 100 Gather.txt | cat -A
+            echo ""
+            echo "前5行:"
+            head -n 5 Gather.txt || echo "无法读取行"
+          else
+            echo "❌ 文件不存在"
+            exit 1
+          fi
+
+      - name: 检查是否为有效内容
+        id: validate
+        run: |
           if [ ! -f "Gather.txt" ]; then
-            echo "❌ Gather.txt下载失败"
-            exit 1
+            echo "is_valid=false" >> $GITHUB_OUTPUT
+            echo "reason=file_not_exists" >> $GITHUB_OUTPUT
+            exit 0
           fi
           
-          echo "✅ 下载完成"
-
-      - name: 验证文件内容
-        run: |
-          echo "验证Gather.txt文件..."
+          content=$(head -c 500 "Gather.txt" || echo "")
           
-          # 检查文件是否为空
-          if [ ! -s "Gather.txt" ]; then
-            echo "❌ Gather.txt内容为空"
-            exit 1
-          fi
-          
-          # 显示文件信息
-          file_size=$(du -h "Gather.txt" | cut -f1)
-          line_count=$(wc -l < "Gather.txt")
-          
-          echo "📊 文件大小: $file_size"
-          echo "📈 行数: $line_count"
-          echo "🔍 前2行预览:"
-          head -n 2 "Gather.txt"
-          
-          # 检查是否为有效的M3U格式
-          if ! head -n 1 "Gather.txt" | grep -q "^#EXTM3U"; then
-            echo "⚠️  警告: 文件可能不是标准的M3U格式"
+          # 检查常见错误页面特征
+          if echo "$content" | grep -qi "error\|404\|not.found\|access.denied\|cloudflare"; then
+            echo "is_valid=false" >> $GITHUB_OUTPUT
+            echo "reason=error_page" >> $GITHUB_OUTPUT
+          elif echo "$content" | grep -qi "<html\|<!DOCTYPE"; then
+            echo "is_valid=false" >> $GITHUB_OUTPUT
+            echo "reason=html_page" >> $GITHUB_OUTPUT
+          elif [ $(wc -c < "Gather.txt") -lt 10 ]; then
+            echo "is_valid=false" >> $GITHUB_OUTPUT
+            echo "reason=too_small" >> $GITHUB_OUTPUT
           else
-            echo "✅ 检测到标准M3U格式"
+            echo "is_valid=true" >> $GITHUB_OUTPUT
           fi
 
-      - name: 检查文件变更
-        id: check_changes
+      - name: 处理无效内容
+        if: steps.validate.outputs.is_valid == 'false'
         run: |
-          # 检查文件是否存在于git中
-          if git ls-files --error-unmatch "Gather.txt" >/dev/null 2>&1; then
-            # 文件已存在，检查是否有变化
-            if git diff --quiet "Gather.txt"; then
-              echo "🟢 Gather.txt内容无变化"
-              echo "has_changes=false" >> $GITHUB_OUTPUT
-            else
-              echo "🔵 Gather.txt内容有更新"
-              echo "has_changes=true" >> $GITHUB_OUTPUT
-            fi
-          else
-            # 新文件
-            echo "🟡 Gather.txt是新文件"
-            echo "has_changes=true" >> $GITHUB_OUTPUT
-          fi
+          echo "⚠️  内容无效: ${{ steps.validate.outputs.reason }}"
+          echo "当前内容:"
+          head -n 3 "Gather.txt" || echo "无内容"
+          
+          # 保存错误信息
+          echo "# 获取失败 - ${{ steps.validate.outputs.reason }}" > "Gather.txt"
+          echo "# 时间: $(TZ='Asia/Shanghai' date '+%Y-%m-%d %H:%M:%S CST')" >> "Gather.txt"
+          echo "# 来源: https://tv-1.iill.top/m3u/Gather" >> "Gather.txt"
 
-      - name: 提交更新
-        if: steps.check_changes.outputs.has_changes == 'true'
+      - name: 提交文件
         run: |
-          # 配置Git
           git config --global user.name "GitHub Actions Bot"
           git config --global user.email "actions@users.noreply.github.com"
           
-          # 添加文件
           git add Gather.txt
           
-          # 生成提交信息
-          commit_time=$(TZ='Asia/Shanghai' date '+%Y-%m-%d %H:%M CST')
-          line_count=$(wc -l < "Gather.txt")
-          file_size=$(du -h "Gather.txt" | cut -f1)
+          if [ "${{ steps.validate.outputs.is_valid }}" = "true" ]; then
+            line_count=$(wc -l < "Gather.txt")
+            file_size=$(du -h "Gather.txt" | cut -f1)
+            commit_msg="✅ 更新Gather列表 - $(TZ='Asia/Shanghai' date '+%Y-%m-%d %H:%M CST') | 行数: $line_count"
+          else
+            commit_msg="⚠️  获取失败 - ${{ steps.validate.outputs.reason }} - $(TZ='Asia/Shanghai' date '+%Y-%m-%d %H:%M CST')"
+          fi
           
-          commit_msg="📺 更新Gather列表 - $commit_time
-          行数: $line_count | 大小: $file_size
-          来源: https://tv-1.iill.top/m3u/Gather"
-          
-          # 提交
-          git commit -m "$commit_msg"
-          
-          # 推送
+          git commit -m "$commit_msg" || exit 0
           git push origin ${{ github.ref }}
           
-          echo "✅ 已成功提交并推送更新"
+          echo "📤 提交完成: $commit_msg"
 
-      - name: 无更新提示
-        if: steps.check_changes.outputs.has_changes == 'false'
+      - name: 完成总结
         run: |
-          echo "ℹ️ Gather.txt内容无变化，无需更新"
-          echo "当前文件信息:"
-          echo "大小: $(du -h Gather.txt | cut -f1)"
-          echo "行数: $(wc -l < Gather.txt)"
-
-      - name: 完成通知
-        run: |
-          echo "🎉 Gather自构建流程完成"
-          echo "分支: ${{ github.ref }}"
-          echo "运行时间: $(TZ='Asia/Shanghai' date '+%Y-%m-%d %H:%M:%S CST')"
+          echo "🎉 流程完成"
+          echo "有效性: ${{ steps.validate.outputs.is_valid }}"
+          echo "原因: ${{ steps.validate.outputs.reason || 'N/A' }}"
+          echo "文件信息:"
+          ls -la Gather.txt
