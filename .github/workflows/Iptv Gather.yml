@@ -1,13 +1,13 @@
-name: Iptv Gather
+name: Update Gather Content Windows
 
 on:
-  workflow_dispatch: # 允许手动触发
+  workflow_dispatch:
   schedule:
-    - cron: '0 0 * * *' # 每天UTC时间00:00（北京时间8:00）运行
+    - cron: '0 0 * * *'
 
 jobs:
   update-gather:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     
     steps:
     - name: Checkout repository
@@ -15,30 +15,33 @@ jobs:
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Fetch content from URL
+    - name: Fetch content using PowerShell
+      shell: pwsh
       run: |
-        # 使用 curl 获取内容
-        curl -s -L "https://tv-1.iill.top/m3u/Gather" -o Gather.txt
-        
-        # 检查文件是否成功下载且不为空
-        if [ -s Gather.txt ]; then
-          echo "Content fetched successfully"
+        try {
+          # 下载内容
+          $response = Invoke-WebRequest -Uri "https://tv-1.iill.top/m3u/Gather" -UseBasicParsing
+          $content = $response.Content
+          
+          # 保存到文件
+          Set-Content -Path "Gather.txt" -Value $content -Encoding UTF8
           
           # 配置 git
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           
-          # 检查文件是否有变化
-          if git diff --quiet Gather.txt; then
-            echo "No changes detected"
-          else
-            # 提交更改
-            git add Gather.txt
-            git commit -m "Auto-update Gather.txt $(date +'%Y-%m-%d %H:%M:%S')"
+          # 检查是否有变化并提交
+          git add Gather.txt
+          $hasChanges = git status --porcelain
+          if ($hasChanges) {
+            git commit -m "Auto-update Gather.txt $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
             git push
-            echo "Gather.txt updated successfully"
-          fi
-        else
-          echo "Error: Failed to fetch content or content is empty"
+            Write-Output "Gather.txt updated successfully"
+          } else {
+            Write-Output "No changes detected"
+          }
+        }
+        catch {
+          Write-Error "Failed to fetch content: $($_.Exception.Message)"
           exit 1
-        fi
+        }
