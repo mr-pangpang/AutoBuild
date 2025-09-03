@@ -5,8 +5,12 @@ on:
     - cron: '0 */6 * * *'  # 每6小时运行一次
   workflow_dispatch:  # 允许手动触发
   push:
+    branches: [ main ]
     paths:
-      - '.github/workflows/update-gather.yml'  # 当工作流文件更改时也运行
+      - '.github/workflows/update-gather.yml'
+
+permissions:
+  contents: write  # 确保有写入权限
 
 jobs:
   update-file:
@@ -16,20 +20,36 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
       with:
-        token: ${{ secrets.GITHUB_TOKEN }}
+        ref: ${{ github.ref }}
+
+    - name: Create disk directory if not exists
+      run: mkdir -p disk
 
     - name: Fetch content from URL
       run: |
-        curl -s http://123.56.43.183/tv/Gather.txt -o disk/Gather.txt
+        # 使用超时和重试机制
+        curl --connect-timeout 30 --retry 3 --retry-delay 5 \
+          http://123.56.43.183/tv/Gather.txt -o disk/Gather.txt
         
-        # 检查文件是否有变化
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
+        # 检查文件是否成功下载
+        if [ ! -s "disk/Gather.txt" ]; then
+          echo "Error: Downloaded file is empty or doesn't exist"
+          exit 1
+        fi
+
+    - name: Configure Git
+      run: |
+        git config --local user.email "github-actions[bot]@users.noreply.github.com"
+        git config --local user.name "github-actions[bot]"
+
+    - name: Commit and push if changes
+      run: |
+        git add disk/Gather.txt
         
-        if git diff --quiet; then
-          echo "No changes detected"
+        # 检查是否有更改
+        if git diff --staged --quiet; then
+          echo "No changes to commit"
         else
-          git add disk/Gather.txt
-          git commit -m "自动更新 Gather.txt - $(date +'%Y-%m-%d %H:%M:%S')"
+          git commit -m "🔄 自动更新 Gather.txt - $(date +'%Y-%m-%d %H:%M:%S')"
           git push
         fi
