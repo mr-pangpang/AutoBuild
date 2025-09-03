@@ -1,0 +1,44 @@
+name: Iptv Gather
+
+on:
+  workflow_dispatch: # 允许手动触发
+  schedule:
+    - cron: '0 0 * * *' # 每天UTC时间00:00（北京时间8:00）运行
+
+jobs:
+  update-gather:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Fetch content from URL
+      run: |
+        # 使用 curl 获取内容
+        curl -s -L "https://tv-1.iill.top/m3u/Gather" -o Gather.txt
+        
+        # 检查文件是否成功下载且不为空
+        if [ -s Gather.txt ]; then
+          echo "Content fetched successfully"
+          
+          # 配置 git
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # 检查文件是否有变化
+          if git diff --quiet Gather.txt; then
+            echo "No changes detected"
+          else
+            # 提交更改
+            git add Gather.txt
+            git commit -m "Auto-update Gather.txt $(date +'%Y-%m-%d %H:%M:%S')"
+            git push
+            echo "Gather.txt updated successfully"
+          fi
+        else
+          echo "Error: Failed to fetch content or content is empty"
+          exit 1
+        fi
