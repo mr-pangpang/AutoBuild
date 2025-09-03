@@ -1,47 +1,55 @@
-name: TVBOX Source Backup
+name: Update TVBOX Gather Source
 
 on:
-  workflow_dispatch:
+  workflow_dispatch: # 手动触发
   schedule:
-    - cron: '0 2 * * *'
+    - cron: '0 2 * * *'  # 每天UTC时间02:00（北京时间10:00）
 
 jobs:
-  backup:
-    runs-on: windows-latest  # 使用Windows环境
+  update-tvbox:
+    runs-on: windows-latest  # 使用Windows环境，与本地一致
     
     permissions:
       contents: write
     
     steps:
-    - name: Checkout
+    - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Download using PowerShell
-      shell: pwsh
+    - name: Download using curl (模拟本地bat)
+      shell: cmd  # 使用CMD，与本地bat一致
       run: |
-        Write-Host "正在下载直播源..."
-        try {
-          # 使用PowerShell下载
-          $url = "https://tv-1.iill.top/m3u/Gather"
-          Invoke-WebRequest -Uri $url -OutFile "Gather.txt" -TimeoutSec 30
-          
-          if (Test-Path "Gather.txt" -And (Get-Item "Gather.txt").Length -gt 0) {
-            Write-Host "✅ 下载成功！"
-            $lineCount = (Get-Content "Gather.txt" | Measure-Object -Line).Lines
-            Write-Host "文件行数: $lineCount"
-          } else {
-            throw "下载失败"
-          }
-        }
-        catch {
-          Write-Host "❌ 下载失败: $($_.Exception.Message)"
-          Set-Content -Path "Gather.txt" -Value "#EXTM3U`n# 下载失败于 $(Get-Date)"
-        }
+        echo 开始下载TVBOX直播源...
+        curl -s -L "https://tv-1.iill.top/m3u/Gather" -o Gather.txt
+        
+        echo 检查下载结果...
+        if exist Gather.txt (
+          for /f %%i in ('type Gather.txt ^| find /c /v ""') do set lines=%%i
+          echo 下载成功！文件共 !lines! 行
+          echo 文件前5行内容：
+          set /p firstline=<Gather.txt
+          echo !firstline!
+        ) else (
+          echo 下载失败，创建空文件
+          echo #EXTM3U > Gather.txt
+          echo # 下载失败时间: %date% %time% >> Gather.txt
+        )
 
-    - name: Commit changes
+    - name: Configure Git
+      shell: cmd
       run: |
         git config user.name "github-actions[bot]"
         git config user.email "github-actions[bot]@users.noreply.github.com"
+
+    - name: Commit and push changes
+      shell: cmd
+      run: |
         git add Gather.txt
-        git commit -m "Update TVBOX source" || echo "无变化"
-        git push
+        git diff --staged --quiet
+        if errorlevel 1 (
+          git commit -m "📺 更新TVBOX直播源 - %date% %time%"
+          git push
+          echo ✅ 更新成功并推送到仓库
+        ) else (
+          echo 🟡 内容无变化，跳过提交
+        )
