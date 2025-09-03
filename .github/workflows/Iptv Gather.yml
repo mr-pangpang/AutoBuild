@@ -1,4 +1,4 @@
-name: Update Gather Content with PAT
+name: Update Gather Content
 
 on:
   workflow_dispatch:
@@ -9,30 +9,28 @@ jobs:
   update-gather:
     runs-on: ubuntu-latest
     
+    permissions:
+      contents: write
+    
     steps:
-    - name: Checkout repository with PAT
+    - name: Checkout repository
       uses: actions/checkout@v4
-      with:
-        token: ${{ secrets.PAT_TOKEN }}  # 这里使用你手动创建的PAT
 
-    - name: Fetch content from URL
+    - name: Debug network connectivity
       run: |
-        echo "🔄 开始获取内容..."
-        curl -s -L --max-time 30 "https://tv-1.iill.top/m3u/Gather" -o Gather.txt
+        echo "🔍 开始网络诊断..."
+        echo "目标URL: https://tv-1.iill.top/m3u/Gather"
         
-        if [ ! -s Gather.txt ]; then
-          echo "❌ 错误：获取内容失败或内容为空"
-          exit 1
-        fi
-        echo "✅ 内容获取成功"
+        # 测试网络连通性
+        echo "1. 测试DNS解析..."
+        nslookup tv-1.iill.top || echo "DNS解析可能有问题"
+        
+        echo "2. 测试网络连通性..."
+        ping -c 3 tv-1.iill.top || echo "Ping测试失败（可能被禁止）"
+        
+        echo "3. 测试HTTP连接..."
+        curl -I -L --max-time 10 "https://tv-1.iill.top/m3u/Gather" || echo "HTTP连接测试失败"
 
-    - name: Configure Git
+    - name: Fetch content with detailed debugging
       run: |
-        git config user.name "github-actions[bot]"
-        git config user.email "github-actions[bot]@users.noreply.github.com"
-
-    - name: Commit and push if changed
-      run: |
-        git add Gather.txt
-        git diff --staged --quiet || (git commit -m "🤖 Auto-update Gather.txt $(date +'%Y-%m-%d %H:%M:%S')" && git push)
-        echo "✅ 操作完成"
+        echo "🔄
