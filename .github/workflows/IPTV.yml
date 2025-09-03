@@ -19,9 +19,9 @@ jobs:
 
       - name: 下载文件到根目录
         run: |
-          echo "开始下载文件: http://123.56.43.183/tv/TV1.txt"
+          echo "开始下载文件"
           # 下载并显示HTTP状态码，便于排查
-          curl -v --retry 3 --max-time 30 "http://123.56.43.183/tv/TV1.txt" -o "TV.txt"
+          curl -v --retry 3 --max-time 30 "https://tv-1.iill.top/m3u/Gather" -o "TV.txt"
           
           # 强制检查下载结果（即使curl不报错，也验证文件存在）
           if [ ! -f "TV.txt" ]; then
