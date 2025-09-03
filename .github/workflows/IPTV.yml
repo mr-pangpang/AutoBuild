@@ -70,7 +70,7 @@ jobs:
           git config --global user.email "actions-bot@github.com"
           
           # 添加文件
-          git add "TV.txt"
+          git add "TV/TV.txt"
           
           # 提交（允许首次创建的空提交提示）
           commit_msg="Auto-update TV.txt: $(date -u +'%Y-%m-%d %H:%M UTC')"
