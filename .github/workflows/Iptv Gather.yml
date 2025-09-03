@@ -1,8 +1,8 @@
 name: 自动保存TV.txt到DISK/TV目录
 on:
   push:
-    branches: [main]  # 触发分支，根据实际仓库主分支修改（如master）
-  workflow_dispatch:  # 允许手动触发
+    branches: [main]  # 替换为你的主分支
+  workflow_dispatch:
 
 jobs:
   save-file:
@@ -11,33 +11,35 @@ jobs:
       - name: 拉取仓库代码
         uses: actions/checkout@v4
         with:
-          persist-credentials: false  # 关闭默认令牌，使用自定义PAT
+          persist-credentials: false
 
       - name: 创建目标目录（DISK/TV）
-        run: mkdir -p DISK/TV  # 自动创建多级目录，不存在则创建
+        run: mkdir -p DISK/TV && echo "创建目录成功，路径：$(pwd)/DISK/TV"
 
       - name: 生成/处理TV.txt文件
         run: |
-          # 替换为你的实际文件生成命令（如下载、脚本输出等）
-          # 示例：从指定URL下载文件
-          # curl -o TV.txt "https://example.com/source-tv.txt"
-          # 示例：本地生成内容
-          echo "这里是TV.txt的内容" > TV.txt  # 请替换为实际内容或命令
+          # 替换为你的实际生成命令，确保输出到当前目录（TV.txt）
+          echo "这里是TV.txt的内容" > TV.txt  # 示例：本地生成
+          # 若为下载：curl -o TV.txt "https://example.com/source.txt"
+
+      - name: 检查TV.txt是否存在
+        run: |
+          if [ -f "TV.txt" ]; then
+            echo "TV.txt已存在，路径：$(pwd)/TV.txt"
+          else
+            echo "错误：未找到TV.txt，请检查生成步骤"
+            exit 1
+          fi
 
       - name: 移动文件到目标路径
-        run: mv TV.txt DISK/TV/  # 将文件移动到DISK/TV目录下
+        run: |
+          mv TV.txt DISK/TV/
+          echo "移动完成，目标路径：$(pwd)/DISK/TV/TV.txt"
 
       - name: 提交并推送变更
         run: |
-          # 配置提交用户信息
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
-          
-          # 添加文件到暂存区
           git add DISK/TV/TV.txt
-          
-          # 提交变更（无变更时不报错）
           git commit -m "自动保存TV.txt到DISK/TV目录" || echo "无文件变更，无需提交"
-          
-          # 使用PAT_TOKEN推送（关键步骤，解决权限问题）
           git push https://${{ secrets.PAT_TOKEN }}@github.com/mr-pangpang/Live.git HEAD:main
