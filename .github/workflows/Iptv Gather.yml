@@ -1,0 +1,134 @@
+name: Iptv Gather
+
+on:
+  schedule:
+    - cron: '0 0 * * *'  # 每天UTC凌晨执行
+  workflow_dispatch:  # 手动触发优先测试
+
+jobs:
+  save-tv:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # 明确授予写入权限
+    steps:
+      - name: 拉取仓库代码（完整历史）
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # 确保拉取所有分支历史，避免对比错误
+          ref: ${{ github.ref }}  # 拉取当前触发分支（默认主分支）
+
+      - name: 创建TV子目录
+        run: |
+          mkdir -p TV  # 创建TV目录（如果不存在）
+
+      - name: 下载TV文件到TV子目录
+        run: |
+          echo "开始下载文件到TV子目录: http://123.56.43.183/tv/TV.txt"
+          # 下载到TV子目录
+          curl -v --retry 3 --max-time 30 "http://123.56.43.183/tv/TV.txt" -o "TV/TV.txt"
+          
+          # 强制检查下载结果
+          if [ ! -f "TV/TV.txt" ]; then
+            echo "❌ TV.txt下载失败，文件未创建"
+            exit 1
+          fi
+
+      - name: 下载Gather文件到根目录
+        run: |
+          echo "开始下载Gather文件: https://tv-1.iill.top/m3u/Gather"
+          # 下载Gather文件到根目录
+          curl -v --retry 3 --max-time 30 "https://tv-1.iill.top/m3u/Gather" -o "Gather.txt"
+          
+          # 强制检查下载结果
+          if [ ! -f "Gather.txt" ]; then
+            echo "❌ Gather.txt下载失败，文件未创建"
+            exit 1
+          fi
+
+      - name: 验证文件内容（非空检查）
+        run: |
+          echo "验证TV/TV.txt内容..."
+          if [ -s "TV/TV.txt" ]; then
+            echo "TV.txt文件大小: $(du -h TV/TV.txt)"
+            echo "TV.txt前3行内容: $(head -n 3 TV/TV.txt | tr '\n' ' ')"
+          else
+            echo "❌ TV/TV.txt内容为空，终止流程"
+            exit 1
+          fi
+          
+          echo "验证Gather.txt内容..."
+          if [ -s "Gather.txt" ]; then
+            echo "Gather.txt文件大小: $(du -h Gather.txt)"
+            echo "Gather.txt前3行内容: $(head -n 3 Gather.txt | tr '\n' ' ')"
+          else
+            echo "❌ Gather.txt内容为空，终止流程"
+            exit 1
+          fi
+
+      - name: 检查文件状态
+        id: file_status
+        run: |
+          need_commit_tv=false
+          need_commit_gather=false
+          
+          # 检查TV.txt状态
+          if [ ! -f "TV/TV.txt" ]; then
+            echo "TV状态: 文件不存在，需创建"
+            need_commit_tv=true
+          elif ! git ls-files --error-unmatch "TV/TV.txt" > /dev/null 2>&1; then
+            echo "TV状态: 新文件，需提交"
+            need_commit_tv=true
+          elif ! git diff --quiet "TV/TV.txt"; then
+            echo "TV状态: 内容有更新"
+            need_commit_tv=true
+          else
+            echo "TV状态: 内容无变化"
+          fi
+          
+          # 检查Gather.txt状态
+          if [ ! -f "Gather.txt" ]; then
+            echo "Gather状态: 文件不存在，需创建"
+            need_commit_gather=true
+          elif ! git ls-files --error-unmatch "Gather.txt" > /dev/null 2>&1; then
+            echo "Gather状态: 新文件，需提交"
+            need_commit_gather=true
+          elif ! git diff --quiet "Gather.txt"; then
+            echo "Gather状态: 内容有更新"
+            need_commit_gather=true
+          else
+            echo "Gather状态: 内容无变化"
+          fi
+          
+          # 输出是否需要提交
+          if [ "$need_commit_tv" = true ] || [ "$need_commit_gather" = true ]; then
+            echo "need_commit=true" >> $GITHUB_OUTPUT
+            echo "commit_message=Auto-update: $(TZ='Asia/Shanghai' date +'%Y-%m-%d %H:%M CST')" >> $GITHUB_OUTPUT
+          else
+            echo "need_commit=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: 提交并推送
+        if: steps.file_status.outputs.need_commit == 'true'
+        run: |
+          # 配置Git身份
+          git config --global user.name "GitHub Actions Bot"
+          git config --global user.email "actions-bot@github.com"
+          
+          # 添加所有变更文件
+          git add .
+          
+          # 提交
+          commit_msg="${{ steps.file_status.outputs.commit_message }}"
+          if ! git commit -m "$commit_msg"; then
+            echo "⚠️ 提交命令返回错误，尝试强制提交"
+            git commit -m "$commit_msg" --allow-empty
+          fi
+          
+          # 推送
+          git push origin ${{ github.ref_name }}
+          echo "✅ 已推送至分支: ${{ github.ref_name }}"
+
+      - name: 无更新提示
+        if: steps.file_status.outputs.need_commit == 'false'
+        run: |
+          echo "ℹ️ 所有文件内容无变化，无需提交"
