@@ -1,4 +1,4 @@
-name: Iptv Gather
+name: Update Gather Content
 
 on:
   workflow_dispatch:
@@ -9,37 +9,34 @@ jobs:
   update-gather:
     runs-on: ubuntu-latest
     
+    # 关键：为 GITHUB_TOKEN 添加写入权限
+    permissions:
+      contents: write
+    
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
-      with:
-        token: ${{ secrets.GITHUB_TOKEN }}  # 使用 PAT 而不是 GITHUB_TOKEN
+      # 不需要指定 token，默认使用 GITHUB_TOKEN
 
     - name: Fetch content from URL
       run: |
-        # 使用 curl 获取内容
-        curl -s -L "https://tv-1.iill.top/m3u/Gather" -o Gather.txt
+        echo "🔄 开始获取内容..."
+        curl -s -L --max-time 30 "https://tv-1.iill.top/m3u/Gather" -o Gather.txt
         
-        # 检查文件是否成功下载且不为空
-        if [ -s Gather.txt ]; then
-          echo "Content fetched successfully"
-          
-          # 配置 git
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          
-          # 检查文件是否有变化
-          if git diff --quiet Gather.txt; then
-            echo "No changes detected"
-          else
-            # 提交更改
-            git add Gather.txt
-            git commit -m "Auto-update Gather.txt $(date +'%Y-%m-%d %H:%M:%S')"
-            # 明确指定使用 PAT 进行推送
-            git push https://${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git HEAD:main
-            echo "Gather.txt updated successfully"
-          fi
-        else
-          echo "Error: Failed to fetch content or content is empty"
+        if [ ! -s Gather.txt ]; then
+          echo "❌ 错误：获取内容失败或内容为空"
           exit 1
         fi
+        echo "✅ 内容获取成功"
+
+    - name: Configure Git
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+
+    - name: Commit and push if changed
+      run: |
+        git add Gather.txt
+        # 只有在有变化时才提交
+        git diff --staged --quiet || (git commit -m "🤖 Auto-update Gather.txt $(date +'%Y-%m-%d %H:%M:%S')" && git push)
+        echo "✅ 操作完成"
