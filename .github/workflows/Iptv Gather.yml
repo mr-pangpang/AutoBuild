@@ -1,8 +1,7 @@
 name: 自动保存TV.txt到DISK/TV目录
 on:
-  # 触发条件：可根据需要修改（如push、手动触发等）
   push:
-    branches: [main]  # 替换为你的主分支名
+    branches: [main]  # 触发分支，根据实际仓库主分支修改（如master）
   workflow_dispatch:  # 允许手动触发
 
 jobs:
@@ -11,23 +10,34 @@ jobs:
     steps:
       - name: 拉取仓库代码
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false  # 关闭默认令牌，使用自定义PAT
 
-      - name: 创建DISK/TV目录
-        run: mkdir -p DISK/TV  # -p确保父目录不存在时自动创建
+      - name: 创建目标目录（DISK/TV）
+        run: mkdir -p DISK/TV  # 自动创建多级目录，不存在则创建
 
-      - name: 生成/处理TV.txt（替换为你的实际操作）
+      - name: 生成/处理TV.txt文件
         run: |
-          # 此处替换为你原本生成TV.txt的命令（如curl下载、echo写入等）
-          # 示例：echo "测试内容" > TV.txt
-          # （请根据你的实际需求修改这一步，确保生成TV.txt文件）
+          # 替换为你的实际文件生成命令（如下载、脚本输出等）
+          # 示例：从指定URL下载文件
+          # curl -o TV.txt "https://example.com/source-tv.txt"
+          # 示例：本地生成内容
+          echo "这里是TV.txt的内容" > TV.txt  # 请替换为实际内容或命令
 
       - name: 移动文件到目标路径
-        run: mv TV.txt DISK/TV/  # 将文件移动到DISK/TV子目录下
+        run: mv TV.txt DISK/TV/  # 将文件移动到DISK/TV目录下
 
       - name: 提交并推送变更
         run: |
+          # 配置提交用户信息
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
+          
+          # 添加文件到暂存区
           git add DISK/TV/TV.txt
+          
+          # 提交变更（无变更时不报错）
           git commit -m "自动保存TV.txt到DISK/TV目录" || echo "无文件变更，无需提交"
-          git push
+          
+          # 使用PAT_TOKEN推送（关键步骤，解决权限问题）
+          git push https://${{ secrets.PAT_TOKEN }}@github.com/mr-pangpang/Live.git HEAD:main
