@@ -1,4 +1,4 @@
-name: Update Gather Content
+name: Update Gather Content with PAT
 
 on:
   workflow_dispatch:
@@ -9,14 +9,11 @@ jobs:
   update-gather:
     runs-on: ubuntu-latest
     
-    # 关键：为 GITHUB_TOKEN 添加写入权限
-    permissions:
-      contents: write
-    
     steps:
-    - name: Checkout repository
+    - name: Checkout repository with PAT
       uses: actions/checkout@v4
-      # 不需要指定 token，默认使用 GITHUB_TOKEN
+      with:
+        token: ${{ secrets.PAT_TOKEN }}  # 这里使用你手动创建的PAT
 
     - name: Fetch content from URL
       run: |
@@ -37,6 +34,5 @@ jobs:
     - name: Commit and push if changed
       run: |
         git add Gather.txt
-        # 只有在有变化时才提交
         git diff --staged --quiet || (git commit -m "🤖 Auto-update Gather.txt $(date +'%Y-%m-%d %H:%M:%S')" && git push)
         echo "✅ 操作完成"
