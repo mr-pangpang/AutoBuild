@@ -1,68 +1,93 @@
-name: Fetch TV Content
+name: Iptv New
 
 on:
-  workflow_dispatch:  # 允许手动触发
   schedule:
-    - cron: '0 0 * * *'  # 每天UTC时间00:00自动运行
-  push:
-    paths:
-      - '.github/workflows/fetch-tv-content.yml'  # 当工作流文件更改时触发
+    - cron: '0 0 * * *'  # 每天UTC凌晨执行
+  workflow_dispatch:  # 手动触发优先测试
 
 jobs:
-  fetch-and-commit:
+  save-tv:
     runs-on: ubuntu-latest
-    
+    permissions:
+      contents: write  # 明确授予写入权限
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-      with:
-        token: ${{ secrets.GITHUB_TOKEN }}
-        fetch-depth: 0
+      - name: 拉取仓库代码（完整历史）
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # 确保拉取所有分支历史，避免对比错误
+          ref: ${{ github.ref }}  # 拉取当前触发分支（默认主分支）
 
-    - name: Create directories if not exist
-      run: |
-        mkdir -p disk/TV
+      - name: 创建TV仓库目录
+        run: |
+          mkdir -p disk/tv  # 创建disk/tv目录（如果不存在）
 
-    - name: Fetch Gather.txt content
-      run: |
-        echo "正在从 http://123.56.43.183/tv/Gather.txt 下载文件..."
-        if curl -s -f http://123.56.43.183/tv/Gather.txt -o disk/TV/Gather.txt; then
-          echo "下载成功"
-          # 检查文件是否为空
-          if [ -s disk/TV/Gather.txt ]; then
-            echo "文件内容有效"
-          else
-            echo "警告：下载的文件为空"
+      - name: 下载文件到TV仓库目录
+        run: |
+          echo "开始下载文件到TV仓库目录: http://123.56.43.183/tv/TV.txt"
+          # 下载到disk/tv目录
+          curl -v --retry 3 --max-time 30 "http://123.56.43.183/tv/TV.txt" -o "disk/tv/tv.txt"
+          
+          # 强制检查下载结果
+          if [ ! -f "disk/tv/tv.txt" ]; then
+            echo "❌ 下载失败，文件未创建"
             exit 1
           fi
-        else
-          echo "错误：下载失败"
-          exit 1
-        fi
 
-    - name: Check for changes
-      id: check_changes
-      run: |
-        if git diff --quiet; then
-          echo "changes_detected=false" >> $GITHUB_OUTPUT
-          echo "没有检测到更改"
-        else
-          echo "changes_detected=true" >> $GITHUB_OUTPUT
-          echo "检测到文件更改"
-          git diff --name-only
-        fi
+      - name: 验证文件内容（非空检查）
+        run: |
+          echo "验证disk/tv/tv.txt内容..."
+          if [ -s "disk/tv/tv.txt" ]; then  # 确保文件非空
+            echo "文件大小: $(du -h disk/tv/tv.txt)"
+            echo "前3行内容: $(head -n 3 disk/tv/tv.txt | tr '\n' ' ')"  # 简洁预览
+          else
+            echo "❌ disk/tv/tv.txt内容为空，终止流程"
+            exit 1
+          fi
 
-    - name: Commit and push changes
-      if: steps.check_changes.outputs.changes_detected == 'true'
-      run: |
-        git config --local user.email "github-actions[bot]@users.noreply.github.com"
-        git config --local user.name "github-actions[bot]"
-        git add disk/TV/Gather.txt
-        git commit -m "🔄 自动更新 Gather.txt - $(date +'%Y-%m-%d %H:%M:%S')"
-        git push
-        echo "更改已提交并推送"
+      - name: 检查文件状态（含首次创建）
+        id: file_status
+        run: |
+          # 1. 若文件不存在
+          if [ ! -f "disk/tv/tv.txt" ]; then
+            echo "状态: 文件不存在，需创建"
+            echo "need_commit=true" >> $GITHUB_OUTPUT
+          # 2. 若文件是新创建的（仓库中原本没有）
+          elif ! git ls-files --error-unmatch "disk/tv/tv.txt" > /dev/null 2>&1; then
+            echo "状态: 新文件，需提交"
+            echo "need_commit=true" >> $GITHUB_OUTPUT
+          # 3. 若文件已存在，检查内容变化
+          else
+            if git diff --quiet "disk/tv/tv.txt"; then
+              echo "状态: 内容无变化"
+              echo "need_commit=false" >> $GITHUB_OUTPUT
+            else
+              echo "状态: 内容有更新"
+              echo "need_commit=true" >> $GITHUB_OUTPUT
+            fi
+          fi
 
-    - name: No changes detected
-      if: steps.check_changes.outputs.changes_detected == 'false'
-      run: |
-        echo "没有检测到更改，跳过提交"
+      - name: 提交并推送（强制处理）
+        if: steps.file_status.outputs.need_commit == 'true'
+        run: |
+          # 配置Git身份
+          git config --global user.name "GitHub Actions Bot"
+          git config --global user.email "actions-bot@github.com"
+          
+          # 添加文件
+          git add "disk/tv/tv.txt"
+          
+          # 提交
+          commit_msg="Auto-update disk/tv/tv.txt: $(TZ='Asia/Shanghai' date +'%Y-%m-%d %H:%M CST')"
+          if ! git commit -m "$commit_msg"; then
+            echo "⚠️ 提交命令返回错误，尝试强制提交"
+            git commit -m "$commit_msg" --allow-empty
+          fi
+          
+          # 明确推送当前分支
+          git push origin ${{ github.ref_name }}
+          echo "✅ 已推送至分支: ${{ github.ref_name }}"
+
+      - name: 无更新提示
+        if: steps.file_status.outputs.need_commit == 'false'
+        run: |
+          echo "ℹ️ disk/tv/tv.txt内容无变化，无需提交"
