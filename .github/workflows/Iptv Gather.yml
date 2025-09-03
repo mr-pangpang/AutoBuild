@@ -1,8 +1,8 @@
-name: 下载TV.txt并转存到disk仓库
+name: 定时下载TV.txt并转存到disk仓库
 on:
-  push:
-    branches: [main]  # 触发分支，可改为workflow_dispatch手动触发
-  workflow_dispatch:
+  schedule:
+    - cron: "0 */2 * * *"  # 每两小时执行（分钟 小时 日 月 周）
+  workflow_dispatch:  # 保留手动触发，方便测试
 
 jobs:
   download-and-save:
@@ -15,11 +15,10 @@ jobs:
 
       - name: 从指定链接下载TV.txt
         run: |
-          # 使用curl下载文件，-f确保下载失败时报错，-o指定保存文件名
           curl -f -o TV.txt "http://123.56.43.183/tv/TV.txt"
           echo "下载完成，文件大小：$(du -h TV.txt)"
 
-      - name: 检查disk仓库是否存在（调用GitHub API）
+      - name: 检查disk仓库是否存在
         id: check_repo
         run: |
           RESPONSE=$(curl -s -w "%{http_code}" -H "Authorization: token ${{ secrets.PAT_TOKEN }}" "https://api.github.com/repos/mr-pangpang/disk")
@@ -50,5 +49,5 @@ jobs:
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
           git add TV/TV.txt
-          git commit -m "自动下载并保存TV.txt（来源：http://123.56.43.183/tv/TV.txt）" || echo "无文件变更，无需提交"
+          git commit -m "定时下载并保存TV.txt（$(date +%Y-%m-%d_%H:%M:%S)）" || echo "无文件变更，无需提交"
           git push https://${{ secrets.PAT_TOKEN }}@github.com/mr-pangpang/disk.git HEAD:main
