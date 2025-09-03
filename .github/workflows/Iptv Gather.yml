@@ -1,4 +1,4 @@
-name: Gather Mirror Download
+name: Clone Gather to Repository
 
 on:
   schedule:
@@ -6,140 +6,161 @@ on:
   workflow_dispatch:  # 手动触发
 
 jobs:
-  download-gather:
+  clone-gather:
     runs-on: ubuntu-latest
     permissions:
       contents: write
     
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # 获取完整历史
 
-      - name: Setup mirrors list
+      - name: Clone content from source
+        id: clone-content
         run: |
-          # 定义镜像列表
-          mirrors=(
-            "https://gh.xxooo.cf/"
-            "https://ghproxy.net/"
-            "https://ghfast.top/"
-            "https://gh-proxy.com/"
-            "https://raw.iqiq.io/"
-          )
+          echo "🔄 Cloning content from: https://tv-1.iill.top/m3u/Gather"
           
-          # 将镜像列表保存为环境变量
-          echo "mirrors=${mirrors[*]}" >> $GITHUB_ENV
-          echo "original_url=https://tv-1.iill.top/m3u/Gather" >> $GITHUB_ENV
-
-      - name: Try original URL first
-        id: download_original
-        run: |
-          echo "🔄 Trying original URL: $original_url"
-          if curl -sSfL --connect-timeout 30 --max-time 60 \
-             -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" \
-             "$original_url" -o "Gather.txt" && [ -s "Gather.txt" ]; then
-            echo "✅ Original URL download successful"
-            echo "success=true" >> $GITHUB_OUTPUT
-            echo "source=original" >> $GITHUB_OUTPUT
-          else
-            echo "❌ Original URL failed"
-            echo "success=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Try mirror URLs if original failed
-        if: steps.download_original.outputs.success == 'false'
-        id: download_mirror
-        run: |
-          echo "🔄 Trying mirror URLs..."
-          IFS=' ' read -ra mirror_array <<< "$mirrors"
+          # 设置超时和重试参数
+          max_retries=3
+          timeout=30
           success=false
-          source=""
           
-          for mirror in "${mirror_array[@]}"; do
-            if [ "$success" = "false" ]; then
-              echo "Trying mirror: $mirror"
-              full_url="${mirror}${original_url}"
-              
-              if curl -sSfL --connect-timeout 20 --max-time 40 \
-                 -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" \
-                 "$full_url" -o "Gather.txt" && [ -s "Gather.txt" ]; then
-                echo "✅ Mirror successful: $mirror"
+          for i in $(seq 1 $max_retries); do
+            echo "Attempt $i of $max_retries..."
+            
+            # 使用curl下载内容
+            if curl -sSfL --connect-timeout $timeout --max-time $timeout \
+               -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" \
+               -H "Accept: text/plain, */*" \
+               -H "Referer: https://tv-1.iill.top/" \
+               "https://tv-1.iill.top/m3u/Gather" -o "Gather.txt.tmp"; then
+               
+              # 检查文件是否非空
+              if [ -s "Gather.txt.tmp" ]; then
+                mv "Gather.txt.tmp" "Gather.txt"
                 success=true
-                source="$mirror"
+                echo "✅ Content cloned successfully"
                 break
               else
-                echo "❌ Mirror failed: $mirror"
-                rm -f Gather.txt  # 清理失败的文件
+                echo "❌ Downloaded file is empty, retrying..."
+                rm -f "Gather.txt.tmp"
               fi
+            else
+              echo "❌ Download failed, retrying..."
+            fi
+            
+            # 如果不是最后一次尝试，等待一下再重试
+            if [ $i -lt $max_retries ]; then
+              sleep 2
             fi
           done
           
-          if [ "$success" = "true" ]; then
-            echo "success=true" >> $GITHUB_OUTPUT
-            echo "source=$source" >> $GITHUB_OUTPUT
-          else
-            echo "success=false" >> $GITHUB_OUTPUT
-            echo "❌ All mirrors failed"
-          fi
-
-      - name: Create backup if all downloads failed
-        if: steps.download_original.outputs.success == 'false' && steps.download_mirror.outputs.success == 'false'
-        run: |
-          echo "⚠️ All download attempts failed, creating backup file"
-          cat > Gather.txt << 'EOF'
+          if [ "$success" = false ]; then
+            echo "❌ All download attempts failed"
+            # 创建备份文件
+            cat > "Gather.txt" << 'EOF'
 #EXTM3U
-#EXTINF:-1 tvg-id="example" tvg-name="Example Channel" tvg-logo="https://example.com/logo.png" group-title="General",Example Channel
-http://example.com/stream.m3u8
-#EXTINF:-1 tvg-id="test" tvg-name="Test Channel" tvg-logo="https://example.com/test.png" group-title="General",Test Channel  
-http://example.com/test.m3u8
-EOF
-          echo "source=backup" >> $GITHUB_ENV
-        else
-          run: |
-            echo "source=${{ steps.download_original.outputs.source || steps.download_mirror.outputs.source }}" >> $GITHUB_ENV
+# Cloning failed - using backup content
+# Source: https://tv-1.iill.top/m3u/Gather
+# Time: $(date -u +'%Y-%m-%d %H:%M UTC')
 
-      - name: Validate and commit file
-        run: |
-          echo "📊 File validation:"
-          echo "Source: ${{ env.source }}"
-          echo "File size: $(wc -c < Gather.txt) bytes"
-          echo "Line count: $(wc -l < Gather.txt) lines"
-          
-          # 检查是否为有效的M3U文件
-          if head -n 1 Gather.txt | grep -q "^#EXTM3U"; then
-            echo "✅ Valid M3U file detected"
-            is_valid=true
-          else
-            echo "⚠️ Not a standard M3U file"
-            is_valid=false
+#EXTINF:-1 tvg-id="backup1" tvg-name="Backup Channel 1" group-title="Backup",Backup Channel 1
+http://example.com/backup1.m3u8
+#EXTINF:-1 tvg-id="backup2" tvg-name="Backup Channel 2" group-title="Backup",Backup Channel 2
+http://example.com/backup2.m3u8
+EOF
+            echo "📝 Created backup file"
           fi
+          
+          # 输出文件信息
+          echo "file_size=$(wc -c < Gather.txt)" >> $GITHUB_OUTPUT
+          echo "line_count=$(wc -l < Gather.txt)" >> $GITHUB_OUTPUT
+          echo "success=$success" >> $GITHUB_OUTPUT
+
+      - name: Verify cloned content
+        run: |
+          echo "🔍 Verifying cloned content..."
+          echo "File: Gather.txt"
+          echo "Size: ${{ steps.clone-content.outputs.file_size }} bytes"
+          echo "Lines: ${{ steps.clone-content.outputs.line_count }}"
+          echo "Success: ${{ steps.clone-content.outputs.success }}"
+          
+          # 显示文件开头部分
+          echo "First few lines:"
+          head -n 3 "Gather.txt" || echo "Cannot read file"
+          
+          # 检查是否为M3U格式
+          if head -n 1 "Gather.txt" | grep -q "^#EXTM3U"; then
+            echo "✅ Valid M3U format detected"
+          else
+            echo "⚠️ Not a standard M3U format"
+          fi
+
+      - name: Check for changes
+        id: check-changes
+        run: |
+          # 检查文件是否有变化
+          if git diff --quiet "Gather.txt"; then
+            echo "🟢 No changes detected"
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          else
+            echo "🔵 Changes detected in Gather.txt"
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Commit and push changes
+        if: steps.check-changes.outputs.has_changes == 'true'
+        run: |
+          echo "📤 Committing changes to repository..."
           
           # 配置Git
           git config --global user.name "GitHub Actions Bot"
           git config --global user.email "actions@users.noreply.github.com"
           
           # 添加文件
-          git add Gather.txt
+          git add "Gather.txt"
           
-          # 提交信息
+          # 创建提交信息
           commit_time=$(TZ='Asia/Shanghai' date '+%Y-%m-%d %H:%M CST')
-          if [ "$is_valid" = "true" ]; then
-            commit_msg="✅ Gather updated via ${{ env.source }} - $commit_time"
+          file_size=${{ steps.clone-content.outputs.file_size }}
+          line_count=${{ steps.clone-content.outputs.line_count }}
+          success=${{ steps.clone-content.outputs.success }}
+          
+          if [ "$success" = "true" ]; then
+            commit_msg="📺 Cloned Gather content - $commit_time | $line_count lines | $file_size bytes"
           else
-            commit_msg="⚠️ Gather backup created - $commit_time"
+            commit_msg="⚠️ Gather clone failed - using backup - $commit_time"
           fi
           
-          git commit -m "$commit_msg" || exit 0
+          # 提交更改
+          git commit -m "$commit_msg"
+          
+          # 推送到仓库
           git push origin ${{ github.ref }}
           
-          echo "🎉 $commit_msg"
+          echo "✅ Successfully committed and pushed: $commit_msg"
 
-      - name: Show final status
+      - name: No changes notification
+        if: steps.check-changes.outputs.has_changes == 'false'
+        run: |
+          echo "ℹ️ No changes in Gather content, skipping commit"
+          echo "Current file info:"
+          echo "Size: ${{ steps.clone-content.outputs.file_size }} bytes"
+          echo "Lines: ${{ steps.clone-content.outputs.line_count }}"
+          echo "Source: https://tv-1.iill.top/m3u/Gather"
+
+      - name: Final status report
         run: |
           echo "========================================"
-          echo "📋 Download Status Report"
-          echo "Source: ${{ env.source }}"
-          echo "Original URL: ${{ env.original_url }}"
-          echo "File: Gather.txt"
-          echo "Size: $(wc -c < Gather.txt) bytes"
+          echo "🎉 Gather Clone Process Complete"
+          echo "========================================"
+          echo "Source URL: https://tv-1.iill.top/m3u/Gather"
+          echo "Target File: Gather.txt"
+          echo "Status: ${{ steps.clone-content.outputs.success }}"
+          echo "File Size: ${{ steps.clone-content.outputs.file_size }} bytes"
+          echo "Line Count: ${{ steps.clone-content.outputs.line_count }} lines"
+          echo "Changes Made: ${{ steps.check-changes.outputs.has_changes }}"
           echo "Time: $(TZ='Asia/Shanghai' date '+%Y-%m-%d %H:%M:%S CST')"
           echo "========================================"
