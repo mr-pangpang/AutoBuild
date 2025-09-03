@@ -1,0 +1,412 @@
+﻿#EXTM3U 
+
+#EXTINF:-1 tvg-logo="http://123.56.43.183/icon/huya.png" group-title="•影视「轮播」",速度与激情
+https://live.iill.top/huya/29982635
+#EXTINF:-1 tvg-logo="http://123.56.43.183/icon/huya.png" group-title="•影视「轮播」",周星驰
+https://live.iill.top/huya/11342412
+#EXTINF:-1 tvg-logo="http://123.56.43.183/icon/huya.png" group-title="•影视「轮播」",林正英
+https://live.iill.top/huya/11342421
+#EXTINF:-1 tvg-logo="http://123.56.43.183/icon/huya.png" group-title="•影视「轮播」",五福星
+https://live.iill.top/huya/11282233
+#EXTINF:-1 tvg-logo="http://123.56.43.183/icon/huya.png" group-title="•影视「轮播」",洪金宝
+https://live.iill.top/huya/11279251
+#EXTINF:-1 tvg-logo="http://123.56.43.183/icon/huya.png" group-title="•影视「轮播」",甄子丹
+https://live.iill.top/huya/11352935
+#EXTINF:-1 tvg-logo="http://123.56.43.183/icon/huya.png" group-title="•影视「轮播」",李连杰
+https://live.iill.top/huya/11342390
+#EXTINF:-1 tvg-logo="http://123.56.43.183/icon/huya.png" group-title="•影视「轮播」",周润发
+https://live.iill.top/huya/11342387
+#EXTINF:-1 tvg-logo="http://123.56.43.183/icon/huya.png" group-title="•影视「轮播」",刘德华
+https://live.iill.top/huya/11342424
+#EXTINF:-1 tvg-logo="http://123.56.43.183/icon/huya.png" group-title="•影视「轮播」",古天乐
+https://live.iill.top/huya/29982675
+#EXTINF:-1 tvg-logo="http://123.56.43.183/icon/huya.png" group-title="•影视「轮播」",王宝强
+https://live.iill.top/huya/30080251
+#EXTINF:-1 tvg-logo="http://123.56.43.183/icon/huya.png" group-title="•影视「轮播」",王晶
+https://live.iill.top/huya/11602058
+#EXTINF:-1 tvg-logo="http://123.56.43.183/icon/huya.png" group-title="•影视「轮播」",成龙
+https://live.iill.top/huya/11342386
+#EXTINF:-1 tvg-logo="http://123.56.43.183/icon/huya.png" group-title="•影视「轮播」",沈腾
+https://live.iill.top/huya/11601968
+#EXTINF:-1 tvg-logo="http://123.56.43.183/icon/huya.png" group-title="•影视「轮播」",热门
+https://live.iill.top/huya/880261
+#EXTINF:-1 tvg-logo="http://123.56.43.183/icon/huya.png" group-title="•影视「轮播」",动作
+https://live.iill.top/huya/10871113
+#EXTINF:-1 tvg-logo="http://123.56.43.183/icon/huya.png" group-title="•影视「轮播」",金庸
+https://live.iill.top/huya/11342435
+
+#EXTINF:-1 tvg-id="CCTV1" tvg-name="CCTV1" tvg-logo="https://epg-1.iill.top/logo/CCTV1.png" group-title="•咪咕「TV」",CCTV 1 综合
+https://tv-1.iill.top/migu/cctv1
+#EXTINF:-1 tvg-id="CCTV2" tvg-name="CCTV2" tvg-logo="https://epg-1.iill.top/logo/CCTV2.png" group-title="•咪咕「TV」",CCTV 2 财经
+https://tv-1.iill.top/migu/cctv2
+#EXTINF:-1 tvg-id="CCTV3" tvg-name="CCTV3" tvg-logo="https://epg-1.iill.top/logo/CCTV3.png" group-title="•咪咕「TV」",CCTV 3 综艺
+https://tv-1.iill.top/migu/cctv3
+#EXTINF:-1 tvg-id="CCTV4" tvg-name="CCTV4" tvg-logo="https://epg-1.iill.top/logo/CCTV4.png" group-title="•咪咕「TV」",CCTV 4 中文国际
+https://tv-1.iill.top/migu/cctv4
+#EXTINF:-1 tvg-id="CCTV4美洲" tvg-name="CCTV4美洲" tvg-logo="https://epg-1.iill.top/logo/CCTV4美洲.png" group-title="•咪咕「TV」",CCTV 4 中文国际·美洲
+https://tv-1.iill.top/migu/cctv4m
+#EXTINF:-1 tvg-id="CCTV4欧洲" tvg-name="CCTV4欧洲" tvg-logo="https://epg-1.iill.top/logo/CCTV4欧洲.png" group-title="•咪咕「TV」",CCTV 4 中文国际·欧洲
+https://tv-1.iill.top/migu/cctv4o
+#EXTINF:-1 tvg-id="CCTV5" tvg-name="CCTV5" tvg-logo="https://epg-1.iill.top/logo/CCTV5.png" group-title="•咪咕「TV」",CCTV 5 体育
+https://tv-1.iill.top/migu/cctv5
+#EXTINF:-1 tvg-id="CCTV5+" tvg-name="CCTV5+" tvg-logo="https://epg-1.iill.top/logo/CCTV5+.png" group-title="•咪咕「TV」",CCTV 5+ 体育赛事
+https://tv-1.iill.top/migu/cctv5p
+#EXTINF:-1 tvg-id="CCTV6" tvg-name="CCTV6" tvg-logo="https://epg-1.iill.top/logo/CCTV6.png" group-title="•咪咕「TV」",CCTV 6 电影
+https://tv-1.iill.top/migu/cctv6
+#EXTINF:-1 tvg-id="CCTV7" tvg-name="CCTV7" tvg-logo="https://epg-1.iill.top/logo/CCTV7.png" group-title="•咪咕「TV」",CCTV 7 国防军事
+https://tv-1.iill.top/migu/cctv7
+#EXTINF:-1 tvg-id="CCTV8" tvg-name="CCTV8" tvg-logo="https://epg-1.iill.top/logo/CCTV8.png" group-title="•咪咕「TV」",CCTV 8 电视剧
+https://tv-1.iill.top/migu/cctv8
+#EXTINF:-1 tvg-id="CCTV9" tvg-name="CCTV9" tvg-logo="https://epg-1.iill.top/logo/CCTV9.png" group-title="•咪咕「TV」",CCTV 9 纪录
+https://tv-1.iill.top/migu/cctv9
+#EXTINF:-1 tvg-id="CCTV10" tvg-name="CCTV10" tvg-logo="https://epg-1.iill.top/logo/CCTV10.png" group-title="•咪咕「TV」",CCTV 10 科教
+https://tv-1.iill.top/migu/cctv10
+#EXTINF:-1 tvg-id="CCTV11" tvg-name="CCTV11" tvg-logo="https://epg-1.iill.top/logo/CCTV11.png" group-title="•咪咕「TV」",CCTV 11 戏曲
+https://tv-1.iill.top/migu/cctv11
+#EXTINF:-1 tvg-id="CCTV12" tvg-name="CCTV12" tvg-logo="https://epg-1.iill.top/logo/CCTV12.png" group-title="•咪咕「TV」",CCTV 12 社会与法
+https://tv-1.iill.top/migu/cctv12
+#EXTINF:-1 tvg-id="CCTV13" tvg-name="CCTV13" tvg-logo="https://epg-1.iill.top/logo/CCTV13.png" group-title="•咪咕「TV」",CCTV 13 新闻
+https://tv-1.iill.top/migu/cctv13
+#EXTINF:-1 tvg-id="CCTV14" tvg-name="CCTV14" tvg-logo="https://epg-1.iill.top/logo/CCTV14.png" group-title="•咪咕「TV」",CCTV 14 少儿
+https://tv-1.iill.top/migu/cctv14
+#EXTINF:-1 tvg-id="CCTV15" tvg-name="CCTV15" tvg-logo="https://epg-1.iill.top/logo/CCTV15.png" group-title="•咪咕「TV」",CCTV 15 音乐
+https://tv-1.iill.top/migu/cctv15
+#EXTINF:-1 tvg-id="CCTV17" tvg-name="CCTV17" tvg-logo="https://epg-1.iill.top/logo/CCTV17.png" group-title="•咪咕「TV」",CCTV 17 农村农业
+https://tv-1.iill.top/migu/cctv17
+#EXTINF:-1 tvg-id="CETV1" tvg-name="CETV1" tvg-logo="https://epg-1.iill.top/logo/CETV1.png" group-title="•咪咕「TV」",CETV 1 中国教育
+https://tv-1.iill.top/migu/cetv1
+#EXTINF:-1 tvg-id="CETV2" tvg-name="CETV2" tvg-logo="https://epg-1.iill.top/logo/CETV2.png" group-title="•咪咕「TV」",CETV 2 中国教育
+https://tv-1.iill.top/migu/cetv2
+#EXTINF:-1 tvg-id="CETV4" tvg-name="CETV4" tvg-logo="https://epg-1.iill.top/logo/CETV4.png" group-title="•咪咕「TV」",CETV 4 中国教育
+https://tv-1.iill.top/migu/cetv4
+#EXTINF:-1 tvg-id="浙江卫视" tvg-name="浙江卫视" tvg-logo="https://epg-1.iill.top/logo/浙江卫视.png" group-title="•咪咕「TV」",浙江卫视
+http://ali-m-l.cztv.com/channels/lantian/channel001/1080p.m3u8
+#EXTINF:-1 tvg-id="东方卫视" tvg-name="东方卫视" tvg-logo="https://epg-1.iill.top/logo/东方卫视.png" group-title="•咪咕「TV」",东方卫视
+https://tv-1.iill.top/migu/dfws
+#EXTINF:-1 tvg-id="江苏卫视" tvg-name="江苏卫视" tvg-logo="https://epg-1.iill.top/logo/江苏卫视.png" group-title="•咪咕「TV」",江苏卫视
+https://tv-1.iill.top/migu/jsws
+#EXTINF:-1 tvg-id="广东卫视" tvg-name="广东卫视" tvg-logo="https://epg-1.iill.top/logo/广东卫视.png" group-title="•咪咕「TV」",广东卫视
+https://tv-1.iill.top/migu/gdws
+#EXTINF:-1 tvg-id="江西卫视" tvg-name="江西卫视" tvg-logo="https://epg-1.iill.top/logo/江西卫视.png" group-title="•咪咕「TV」",江西卫视
+https://tv-1.iill.top/migu/jxws
+#EXTINF:-1 tvg-id="陕西卫视" tvg-name="陕西卫视" tvg-logo="https://epg-1.iill.top/logo/陕西卫视.png" group-title="•咪咕「TV」",陕西卫视
+https://tv-1.iill.top/migu/sxws
+#EXTINF:-1 tvg-id="湖北卫视" tvg-name="湖北卫视" tvg-logo="https://epg-1.iill.top/logo/湖北卫视.png" group-title="•咪咕「TV」",湖北卫视
+https://tv-1.iill.top/migu/hubws
+#EXTINF:-1 tvg-id="东南卫视" tvg-name="东南卫视" tvg-logo="https://epg-1.iill.top/logo/东南卫视.png" group-title="•咪咕「TV」",东南卫视
+https://tv-1.iill.top/migu/dnws
+#EXTINF:-1 tvg-id="海峡卫视" tvg-name="海峡卫视" tvg-logo="https://epg-1.iill.top/logo/海峡卫视.png" group-title="•咪咕「TV」",海峡卫视
+https://tv-1.iill.top/migu/hxws
+#EXTINF:-1 tvg-id="四海钓鱼" tvg-name="四海钓鱼" tvg-logo="https://epg-1.iill.top/logo/四海钓鱼.png" group-title="•咪咕「TV」",四海钓鱼
+https://tv-1.iill.top/migu/shdy
+#EXTINF:-1 tvg-id="上海新闻综合" tvg-name="上海新闻综合" tvg-logo="https://epg-1.iill.top/logo/上海新闻.png" group-title="•咪咕「TV」",上海新闻综合
+https://tv-1.iill.top/migu/shxw
+#EXTINF:-1 tvg-id="上视东方影视" tvg-name="上视东方影视" tvg-logo="https://epg-1.iill.top/logo/东方影视.png" group-title="•咪咕「TV」",上视东方影视
+https://tv-1.iill.top/migu/shys
+#EXTINF:-1 tvg-id="CHC影迷电影" tvg-name="CHC影迷电影" tvg-logo="https://epg-1.iill.top/logo/影迷电影.png" group-title="•咪咕「TV」",CHC 影迷电影
+https://tv-1.iill.top/migu/chcym
+#EXTINF:-1 tvg-id="CHC动作电影" tvg-name="CHC动作电影" tvg-logo="https://epg-1.iill.top/logo/动作电影.png" group-title="•咪咕「TV」",CHC 动作电影
+https://tv-1.iill.top/migu/chcdz
+#EXTINF:-1 tvg-id="CHC家庭影院" tvg-name="CHC家庭影院" tvg-logo="https://epg-1.iill.top/logo/家庭影院.png" group-title="•咪咕「TV」",CHC 家庭影院
+https://tv-1.iill.top/migu/chcjt
+#EXTINF:-1 tvg-id="新片放映" tvg-name="新片放映" tvg-logo="https://epg-1.iill.top/logo/咪咕.png" group-title="•咪咕「TV」",新片放映
+https://tv-1.iill.top/migu/xpfy
+#EXTINF:-1 tvg-id="高清大片" tvg-name="高清大片" tvg-logo="https://epg-1.iill.top/logo/咪咕.png" group-title="•咪咕「TV」",高清大片
+https://tv-1.iill.top/migu/gqdp
+#EXTINF:-1 tvg-id="高能悬疑" tvg-name="高能悬疑" tvg-logo="https://epg-1.iill.top/logo/咪咕.png" group-title="•咪咕「TV」",高能悬疑
+https://tv-1.iill.top/migu/gnxy
+#EXTINF:-1 tvg-id="抗战经典影片" tvg-name="抗战经典影片" tvg-logo="https://epg-1.iill.top/logo/咪咕.png" group-title="•咪咕「TV」",抗战经典影片
+https://tv-1.iill.top/migu/kzjd
+#EXTINF:-1 tvg-id="红色轮播" tvg-name="红色轮播" tvg-logo="https://epg-1.iill.top/logo/咪咕.png" group-title="•咪咕「TV」",血色山河·抗日战争影像志
+https://tv-1.iill.top/migu/xssh
+#EXTINF:-1 tvg-id="咪咕24小时体育" tvg-name="咪咕24小时体育" tvg-logo="https://epg-1.iill.top/logo/咪咕.png" group-title="•咪咕「TV」",咪咕24小时体育
+https://tv-1.iill.top/migu/mgty
+#EXTINF:-1 tvg-id="五环传奇" tvg-name="五环传奇" tvg-logo="https://epg-1.iill.top/logo/咪咕.png" group-title="•咪咕「TV」",五环传奇
+https://tv-1.iill.top/migu/whcq
+#EXTINF:-1 tvg-id="赛事最经典" tvg-name="赛事最经典" tvg-logo="https://epg-1.iill.top/logo/咪咕.png" group-title="•咪咕「TV」",赛事最经典
+https://tv-1.iill.top/migu/sszjd
+#EXTINF:-1 tvg-id="掼蛋精英赛" tvg-name="掼蛋精英赛" tvg-logo="https://epg-1.iill.top/logo/咪咕.png" group-title="•咪咕「TV」",掼蛋精英赛
+https://tv-1.iill.top/migu/gdjs
+#EXTINF:-1 tvg-id="体坛名栏汇" tvg-name="体坛名栏汇" tvg-logo="https://epg-1.iill.top/logo/咪咕.png" group-title="•咪咕「TV」",体坛名栏汇
+https://tv-1.iill.top/migu/ttmh
+#EXTINF:-1 tvg-id="和美乡途轮播" tvg-name="和美乡途轮播" tvg-logo="https://epg-1.iill.top/logo/咪咕.png" group-title="•咪咕「TV」",和美乡途轮播
+https://tv-1.iill.top/migu/hmxt
+#EXTINF:-1 tvg-id="深度对话" tvg-name="深度对话" tvg-logo="https://epg-1.iill.top/logo/咪咕.png" group-title="•咪咕「TV」",深度对话
+https://tv-1.iill.top/migu/sddh
+#EXTINF:-1 tvg-id="最强综艺趴" tvg-name="最强综艺趴" tvg-logo="https://epg-1.iill.top/logo/咪咕.png" group-title="•咪咕「TV」",最强综艺趴
+https://tv-1.iill.top/migu/zqzyp
+#EXTINF:-1 tvg-id="嘉佳卡通" tvg-name="嘉佳卡通" tvg-logo="https://epg-1.iill.top/logo/咪咕.png" group-title="•咪咕「TV」",嘉佳卡通
+https://tv-1.iill.top/migu/jddh
+#EXTINF:-1 tvg-id="新动力量创一流" tvg-name="新动力量创一流" tvg-logo="https://epg-1.iill.top/logo/咪咕.png" group-title="•咪咕「TV」",新动力量创一流
+https://tv-1.iill.top/migu/xdll
+#EXTINF:-1 tvg-id="钱塘江" tvg-name="钱塘江" tvg-logo="https://epg-1.iill.top/logo/咪咕.png" group-title="•咪咕「TV」",钱塘江
+https://tv-1.iill.top/migu/qtj
+
+#咪咕赛程
+#EXTINF:-1 tvg-logo="https://epg-1.iill.top/logo/足球.png" group-title="•咪咕「足球」", 「意甲」00:15 联赛 都灵 vs 佛罗伦萨 刘焕
+https://tv-1.iill.top/FB/QcBcnw
+#EXTINF:-1 tvg-logo="https://epg-1.iill.top/logo/足球.png" group-title="•咪咕「足球」", 「意甲」00:15 联赛 都灵 vs 佛罗伦萨 赛场原声
+https://tv-1.iill.top/FB/riLxRY
+#EXTINF:-1 tvg-logo="https://epg-1.iill.top/logo/足球.png" group-title="•咪咕「足球」", 「意甲」00:00 联赛 热那亚 vs 尤文图斯 石庆圣 李彦
+https://tv-1.iill.top/FB/AIQYT1
+#EXTINF:-1 tvg-logo="https://epg-1.iill.top/logo/足球.png" group-title="•咪咕「足球」", 「意甲」00:15 联赛 热那亚 vs 尤文图斯 赛场原声
+https://tv-1.iill.top/FB/GgFHGM
+#EXTINF:-1 tvg-logo="https://epg-1.iill.top/logo/足球.png" group-title="•咪咕「足球」", 「西甲」00:45 联赛 皇家贝蒂斯 vs 毕尔巴鄂竞技 兰子非
+https://tv-1.iill.top/FB/qnzQ6O
+#EXTINF:-1 tvg-logo="https://epg-1.iill.top/logo/足球.png" group-title="•咪咕「足球」", 「西甲」00:45 联赛 皇家贝蒂斯 vs 毕尔巴鄂竞技 赛场原声
+https://tv-1.iill.top/FB/8JgoFI
+#EXTINF:-1 tvg-logo="https://epg-1.iill.top/logo/足球.png" group-title="•咪咕「足球」", 「西甲」01:15 联赛 西班牙人 vs 奥萨苏纳 张天翼
+https://tv-1.iill.top/FB/kI3xnR
+#EXTINF:-1 tvg-logo="https://epg-1.iill.top/logo/足球.png" group-title="•咪咕「足球」", 「西甲」01:15 联赛 西班牙人 vs 奥萨苏纳 赛场原声
+https://tv-1.iill.top/FB/7dYcxI
+#EXTINF:-1 tvg-logo="https://epg-1.iill.top/logo/足球.png" group-title="•咪咕「足球」", 「德甲」01:15 联赛 科隆 vs 弗赖堡 周楚雄
+https://tv-1.iill.top/FB/Cio3Id
+#EXTINF:-1 tvg-logo="https://epg-1.iill.top/logo/足球.png" group-title="•咪咕「足球」", 「德甲」01:15 联赛 科隆 vs 弗赖堡 赛场原声
+https://tv-1.iill.top/FB/nJ6ojJ
+#EXTINF:-1 tvg-logo="https://epg-1.iill.top/logo/足球.png" group-title="•咪咕「足球」", 「英超」01:45 联赛 阿斯顿维拉 vs 水晶宫 涂远
+https://tv-1.iill.top/FB/iH9Oi1
+#EXTINF:-1 tvg-logo="https://epg-1.iill.top/logo/足球.png" group-title="•咪咕「足球」", 「英超」01:45 联赛 阿斯顿维拉 vs 水晶宫 赛场原声
+https://tv-1.iill.top/FB/RqsldX
+#EXTINF:-1 tvg-logo="https://epg-1.iill.top/logo/足球.png" group-title="•咪咕「足球」", 「英超」01:45 联赛 阿斯顿维拉 vs 水晶宫 英文原声
+https://tv-1.iill.top/FB/xGfqgK
+#EXTINF:-1 tvg-logo="https://epg-1.iill.top/logo/足球.png" group-title="•咪咕「足球」", 「法甲」02:30 联赛 里昂 vs 马赛 乔迁
+https://tv-1.iill.top/FB/1V39mm
+#EXTINF:-1 tvg-logo="https://epg-1.iill.top/logo/足球.png" group-title="•咪咕「足球」", 「法甲」02:30 联赛 里昂 vs 马赛 赛场原声
+https://tv-1.iill.top/FB/Ygl2r1
+#EXTINF:-1 tvg-logo="https://epg-1.iill.top/logo/足球.png" group-title="•咪咕「足球」", 「意甲」02:30 联赛 拉齐奥 vs 维罗纳 梁祥宇
+https://tv-1.iill.top/FB/FVOzy7
+#EXTINF:-1 tvg-logo="https://epg-1.iill.top/logo/足球.png" group-title="•咪咕「足球」", 「意甲」02:30 联赛 拉齐奥 vs 维罗纳 赛场原声
+https://tv-1.iill.top/FB/a0If5x
+#EXTINF:-1 tvg-logo="https://epg-1.iill.top/logo/足球.png" group-title="•咪咕「足球」", 「意甲」02:30 联赛 国际米兰 vs 乌迪内斯 刘腾 贺宇
+https://tv-1.iill.top/FB/dEnR8J
+#EXTINF:-1 tvg-logo="https://epg-1.iill.top/logo/足球.png" group-title="•咪咕「足球」", 「意甲」02:30 联赛 国际米兰 vs 乌迪内斯 赛场原声
+https://tv-1.iill.top/FB/rBhgZB
+#EXTINF:-1 tvg-logo="https://epg-1.iill.top/logo/足球.png" group-title="•咪咕「足球」", 「西甲」03:15 联赛 巴列卡诺 vs 巴塞罗那 张昊泽 李欣
+https://tv-1.iill.top/FB/mOKiAM
+#EXTINF:-1 tvg-logo="https://epg-1.iill.top/logo/足球.png" group-title="•咪咕「足球」", 「西甲」03:15 联赛 巴列卡诺 vs 巴塞罗那 赛场原声
+https://tv-1.iill.top/FB/0Rnoxg
+#咪咕赛程
+
+#EXTINF:-1 tvg-logo="http://123.56.43.183/icon/migu.png" group-title="•咪咕「移动」",咪咕直播 𝟙「移动」
+http://gslbserv.itv.cmvideo.cn:80/3000000001000005308/index.m3u8?channel-id=FifastbLive&Contentid=3000000001000005308&livemode=1&stbId=YanG-1989
+#EXTINF:-1 tvg-logo="http://123.56.43.183/icon/migu.png" group-title="•咪咕「移动」",咪咕直播 𝟚「移动」
+http://gslbserv.itv.cmvideo.cn:80/3000000001000005969/index.m3u8?channel-id=FifastbLive&Contentid=3000000001000005969&livemode=1&stbId=YanG-1989
+#EXTINF:-1 tvg-logo="http://123.56.43.183/icon/migu.png" group-title="•咪咕「移动」",咪咕直播 𝟛「移动」
+http://gslbserv.itv.cmvideo.cn:80/3000000001000007218/index.m3u8?channel-id=FifastbLive&Contentid=3000000001000007218&livemode=1&stbId=YanG-1989
+#EXTINF:-1 tvg-logo="http://123.56.43.183/icon/migu.png" group-title="•咪咕「移动」",咪咕直播 𝟜「移动」
+http://gslbserv.itv.cmvideo.cn:80/3000000001000008001/index.m3u8?channel-id=FifastbLive&Contentid=3000000001000008001&livemode=1&stbId=YanG-1989
+#EXTINF:-1 tvg-logo="http://123.56.43.183/icon/migu.png" group-title="•咪咕「移动」",咪咕直播 𝟝「移动」
+http://gslbserv.itv.cmvideo.cn:80/3000000001000008176/index.m3u8?channel-id=FifastbLive&Contentid=3000000001000008176&livemode=1&stbId=YanG-1989
+#EXTINF:-1 tvg-logo="http://123.56.43.183/icon/migu.png" group-title="•咪咕「移动」",咪咕直播 𝟞「移动」
+http://gslbserv.itv.cmvideo.cn:80/3000000001000008379/index.m3u8?channel-id=FifastbLive&Contentid=3000000001000008379&livemode=1&stbId=YanG-1989
+#EXTINF:-1 tvg-logo="http://123.56.43.183/icon/migu.png" group-title="•咪咕「移动」",咪咕直播 𝟟「移动」
+http://gslbserv.itv.cmvideo.cn:80/3000000001000010129/index.m3u8?channel-id=FifastbLive&Contentid=3000000001000010129&livemode=1&stbId=YanG-1989
+#EXTINF:-1 tvg-logo="http://123.56.43.183/icon/migu.png" group-title="•咪咕「移动」",咪咕直播 𝟠「移动」
+http://gslbserv.itv.cmvideo.cn:80/3000000001000010948/index.m3u8?channel-id=FifastbLive&Contentid=3000000001000010948&livemode=1&stbId=YanG-1989
+#EXTINF:-1 tvg-logo="http://123.56.43.183/icon/migu.png" group-title="•咪咕「移动」",咪咕直播 𝟡「移动」
+http://gslbserv.itv.cmvideo.cn:80/3000000001000028638/index.m3u8?channel-id=FifastbLive&Contentid=3000000001000028638&livemode=1&stbId=YanG-1989
+#EXTINF:-1 tvg-logo="http://123.56.43.183/icon/migu.png" group-title="•咪咕「移动」",咪咕直播 𝟙𝟘「移动」
+http://gslbserv.itv.cmvideo.cn:80/3000000001000031494/index.m3u8?channel-id=FifastbLive&Contentid=3000000001000031494&livemode=1&stbId=YanG-1989
+#EXTINF:-1 tvg-logo="http://123.56.43.183/icon/migu.png" group-title="•咪咕「移动」",咪咕直播 𝟙𝟙「移动」
+http://gslbserv.itv.cmvideo.cn:80/3000000010000000097/index.m3u8?channel-id=FifastbLive&Contentid=3000000010000000097&livemode=1&stbId=YanG-1989
+#EXTINF:-1 tvg-logo="http://123.56.43.183/icon/migu.png" group-title="•咪咕「移动」",咪咕直播 𝟙𝟚「移动」
+http://gslbserv.itv.cmvideo.cn:80/3000000010000002019/index.m3u8?channel-id=FifastbLive&Contentid=3000000010000002019&livemode=1&stbId=YanG-1989
+#EXTINF:-1 tvg-logo="http://123.56.43.183/icon/migu.png" group-title="•咪咕「移动」",咪咕直播 𝟙𝟛「移动」
+http://gslbserv.itv.cmvideo.cn:80/3000000010000002809/index.m3u8?channel-id=FifastbLive&Contentid=3000000010000002809&livemode=1&stbId=YanG-1989
+#EXTINF:-1 tvg-logo="http://123.56.43.183/icon/migu.png" group-title="•咪咕「移动」",咪咕直播 𝟙𝟜「移动」
+http://gslbserv.itv.cmvideo.cn:80/3000000010000003915/index.m3u8?channel-id=FifastbLive&Contentid=3000000010000003915&livemode=1&stbId=YanG-1989
+#EXTINF:-1 tvg-logo="http://123.56.43.183/icon/migu.png" group-title="•咪咕「移动」",咪咕直播 𝟙𝟝「移动」
+http://gslbserv.itv.cmvideo.cn:80/3000000010000004193/index.m3u8?channel-id=FifastbLive&Contentid=3000000010000004193&livemode=1&stbId=YanG-1989
+#EXTINF:-1 tvg-logo="http://123.56.43.183/icon/migu.png" group-title="•咪咕「移动」",咪咕直播 𝟙𝟞「移动」
+http://gslbserv.itv.cmvideo.cn:80/3000000010000005837/index.m3u8?channel-id=FifastbLive&Contentid=3000000010000005837&livemode=1&stbId=YanG-1989
+#EXTINF:-1 tvg-logo="http://123.56.43.183/icon/migu.png" group-title="•咪咕「移动」",咪咕直播 𝟙𝟟「移动」
+http://gslbserv.itv.cmvideo.cn:80/3000000010000006077/index.m3u8?channel-id=FifastbLive&Contentid=3000000010000006077&livemode=1&stbId=YanG-1989
+#EXTINF:-1 tvg-logo="http://123.56.43.183/icon/migu.png" group-title="•咪咕「移动」",咪咕直播 𝟙𝟠「移动」
+http://gslbserv.itv.cmvideo.cn:80/3000000010000006658/index.m3u8?channel-id=FifastbLive&Contentid=3000000010000006658&livemode=1&stbId=YanG-1989
+#EXTINF:-1 tvg-logo="http://123.56.43.183/icon/migu.png" group-title="•咪咕「移动」",咪咕直播 𝟙𝟡「移动」
+http://gslbserv.itv.cmvideo.cn:80/3000000010000009788/index.m3u8?channel-id=FifastbLive&Contentid=3000000010000009788&livemode=1&stbId=YanG-1989
+#EXTINF:-1 tvg-logo="http://123.56.43.183/icon/migu.png" group-title="•咪咕「移动」",咪咕直播 𝟚𝟘「移动」
+http://gslbserv.itv.cmvideo.cn:80/3000000010000010833/index.m3u8?channel-id=FifastbLive&Contentid=3000000010000010833&livemode=1&stbId=YanG-1989
+#EXTINF:-1 tvg-logo="http://123.56.43.183/icon/migu.png" group-title="•咪咕「移动」",咪咕直播 𝟚𝟙「移动」
+http://gslbserv.itv.cmvideo.cn:80/3000000010000011297/index.m3u8?channel-id=FifastbLive&Contentid=3000000010000011297&livemode=1&stbId=YanG-1989
+#EXTINF:-1 tvg-logo="http://123.56.43.183/icon/migu.png" group-title="•咪咕「移动」",咪咕直播 𝟚𝟚「移动」
+http://gslbserv.itv.cmvideo.cn:80/3000000010000011518/index.m3u8?channel-id=FifastbLive&Contentid=3000000010000011518&livemode=1&stbId=YanG-1989
+#EXTINF:-1 tvg-logo="http://123.56.43.183/icon/migu.png" group-title="•咪咕「移动」",咪咕直播 𝟚𝟛「移动」
+http://gslbserv.itv.cmvideo.cn:80/3000000010000012558/index.m3u8?channel-id=FifastbLive&Contentid=3000000010000012558&livemode=1&stbId=YanG-1989
+#EXTINF:-1 tvg-logo="http://123.56.43.183/icon/migu.png" group-title="•咪咕「移动」",咪咕直播 𝟚𝟜「移动」
+http://gslbserv.itv.cmvideo.cn:80/3000000010000012616/index.m3u8?channel-id=FifastbLive&Contentid=3000000010000012616&livemode=1&stbId=YanG-1989
+#EXTINF:-1 tvg-logo="http://123.56.43.183/icon/migu.png" group-title="•咪咕「移动」",咪咕直播 𝟚𝟝「移动」
+http://gslbserv.itv.cmvideo.cn:80/3000000010000015470/index.m3u8?channel-id=FifastbLive&Contentid=3000000010000015470&livemode=1&stbId=YanG-1989
+#EXTINF:-1 tvg-logo="http://123.56.43.183/icon/migu.png" group-title="•咪咕「移动」",咪咕直播 𝟚𝟞「移动」
+http://gslbserv.itv.cmvideo.cn:80/3000000010000015560/index.m3u8?channel-id=FifastbLive&Contentid=3000000010000015560&livemode=1&stbId=YanG-1989
+#EXTINF:-1 tvg-logo="http://123.56.43.183/icon/migu.png" group-title="•咪咕「移动」",咪咕直播 𝟚𝟟「移动」
+http://gslbserv.itv.cmvideo.cn:80/3000000010000017678/index.m3u8?channel-id=FifastbLive&Contentid=3000000010000017678&livemode=1&stbId=YanG-1989
+#EXTINF:-1 tvg-logo="http://123.56.43.183/icon/migu.png" group-title="•咪咕「移动」",咪咕直播 𝟚𝟠「移动」
+http://gslbserv.itv.cmvideo.cn:80/3000000010000019839/index.m3u8?channel-id=FifastbLive&Contentid=3000000010000019839&livemode=1&stbId=YanG-1989
+#EXTINF:-1 tvg-logo="http://123.56.43.183/icon/migu.png" group-title="•咪咕「移动」",咪咕直播 𝟚𝟡「移动」
+http://gslbserv.itv.cmvideo.cn:80/3000000010000021904/index.m3u8?channel-id=FifastbLive&Contentid=3000000010000021904&livemode=1&stbId=YanG-1989
+#EXTINF:-1 tvg-logo="http://123.56.43.183/icon/migu.png" group-title="•咪咕「移动」",咪咕直播 𝟛𝟘「移动」
+http://gslbserv.itv.cmvideo.cn:80/3000000010000023434/index.m3u8?channel-id=FifastbLive&Contentid=3000000010000023434&livemode=1&stbId=YanG-1989
+#EXTINF:-1 tvg-logo="http://123.56.43.183/icon/migu.png" group-title="•咪咕「移动」",咪咕直播 𝟛𝟙「移动」
+http://gslbserv.itv.cmvideo.cn:80/3000000010000025380/index.m3u8?channel-id=FifastbLive&Contentid=3000000010000025380&livemode=1&stbId=YanG-1989
+#EXTINF:-1 tvg-logo="http://123.56.43.183/icon/migu.png" group-title="•咪咕「移动」",咪咕直播 𝟛𝟚「移动」
+http://gslbserv.itv.cmvideo.cn:80/3000000010000027691/index.m3u8?channel-id=FifastbLive&Contentid=3000000010000027691&livemode=1&stbId=YanG-1989
+#EXTINF:-1 tvg-logo="http://123.56.43.183/icon/migu.png" group-title="•咪咕「移动」",咪咕直播 𝟛𝟛「移动」
+http://gslbserv.itv.cmvideo.cn:80/3000000010000031669/index.m3u8?channel-id=FifastbLive&Contentid=3000000010000031669&livemode=1&stbId=YanG-1989
+#EXTINF:-1 tvg-logo="http://123.56.43.183/icon/migu.png" group-title="•咪咕「移动」",咪咕直播 𝟛𝟜「移动」
+http://gslbserv.itv.cmvideo.cn:80/3000000020000011518/index.m3u8?channel-id=FifastbLive&Contentid=3000000020000011518&livemode=1&stbId=YanG-1989
+#EXTINF:-1 tvg-logo="http://123.56.43.183/icon/migu.png" group-title="•咪咕「移动」",咪咕直播 𝟛𝟝「移动」
+http://gslbserv.itv.cmvideo.cn:80/3000000020000011519/index.m3u8?channel-id=FifastbLive&Contentid=3000000020000011519&livemode=1&stbId=YanG-1989
+#EXTINF:-1 tvg-logo="http://123.56.43.183/icon/migu.png" group-title="•咪咕「移动」",咪咕直播 𝟛𝟞「移动」
+http://gslbserv.itv.cmvideo.cn:80/3000000020000011520/index.m3u8?channel-id=FifastbLive&Contentid=3000000020000011520&livemode=1&stbId=YanG-1989
+#EXTINF:-1 tvg-logo="http://123.56.43.183/icon/migu.png" group-title="•咪咕「移动」",咪咕直播 𝟛𝟟「移动」
+http://gslbserv.itv.cmvideo.cn:80/3000000020000011521/index.m3u8?channel-id=FifastbLive&Contentid=3000000020000011521&livemode=1&stbId=YanG-1989
+#EXTINF:-1 tvg-logo="http://123.56.43.183/icon/migu.png" group-title="•咪咕「移动」",咪咕直播 𝟛𝟠「移动」
+http://gslbserv.itv.cmvideo.cn:80/3000000020000011522/index.m3u8?channel-id=FifastbLive&Contentid=3000000020000011522&livemode=1&stbId=YanG-1989
+
+#EXTINF:-1 tvg-logo="https://epg-1.iill.top/logo/咪咕.png" group-title="•咪咕「海外」",晴彩广场舞
+https://tv-1.iill.top/itv/qc-dance
+#EXTINF:-1 tvg-logo="https://epg-1.iill.top/logo/咪咕.png" group-title="•咪咕「海外」",晴彩少年
+https://tv-1.iill.top/itv/qc-youth
+#EXTINF:-1 tvg-logo="https://epg-1.iill.top/logo/咪咕.png" group-title="•咪咕「海外」",晴彩竞技
+https://tv-1.iill.top/itv/qc-sports
+#EXTINF:-1 tvg-logo="https://epg-1.iill.top/logo/咪咕.png" group-title="•咪咕「海外」",晴彩篮球
+https://tv-1.iill.top/itv/qc-basket
+#EXTINF:-1 tvg-logo="https://epg-1.iill.top/logo/咪咕.png" group-title="•咪咕「海外」",咪咕直播 𝟜𝕂-𝟙
+https://tv-1.iill.top/itv/4k-1
+#EXTINF:-1 tvg-logo="https://epg-1.iill.top/logo/咪咕.png" group-title="•咪咕「海外」",咪咕直播 𝟜𝕂-𝟚
+https://tv-1.iill.top/itv/4k-2
+#EXTINF:-1 tvg-logo="https://epg-1.iill.top/logo/咪咕.png" group-title="•咪咕「海外」",咪咕直播 𝟙
+https://tv-1.iill.top/itv/migu-1
+#EXTINF:-1 tvg-logo="https://epg-1.iill.top/logo/咪咕.png" group-title="•咪咕「海外」",咪咕直播 𝟚
+https://tv-1.iill.top/itv/migu-2
+#EXTINF:-1 tvg-logo="https://epg-1.iill.top/logo/咪咕.png" group-title="•咪咕「海外」",咪咕直播 𝟛
+https://tv-1.iill.top/itv/migu-3
+#EXTINF:-1 tvg-logo="https://epg-1.iill.top/logo/咪咕.png" group-title="•咪咕「海外」",咪咕直播 𝟜
+https://tv-1.iill.top/itv/migu-4
+#EXTINF:-1 tvg-logo="https://epg-1.iill.top/logo/咪咕.png" group-title="•咪咕「海外」",咪咕直播 𝟝
+https://tv-1.iill.top/itv/migu-5
+#EXTINF:-1 tvg-logo="https://epg-1.iill.top/logo/咪咕.png" group-title="•咪咕「海外」",咪咕直播 𝟞
+https://tv-1.iill.top/itv/migu-6
+#EXTINF:-1 tvg-logo="https://epg-1.iill.top/logo/咪咕.png" group-title="•咪咕「海外」",咪咕直播 𝟟
+https://tv-1.iill.top/itv/migu-7
+#EXTINF:-1 tvg-logo="https://epg-1.iill.top/logo/咪咕.png" group-title="•咪咕「海外」",咪咕直播 𝟠
+https://tv-1.iill.top/itv/migu-8
+#EXTINF:-1 tvg-logo="https://epg-1.iill.top/logo/咪咕.png" group-title="•咪咕「海外」",咪咕直播 𝟡
+https://tv-1.iill.top/itv/migu-9
+#EXTINF:-1 tvg-logo="https://epg-1.iill.top/logo/咪咕.png" group-title="•咪咕「海外」",咪咕直播 𝟙𝟘
+https://tv-1.iill.top/itv/migu-10
+#EXTINF:-1 tvg-logo="https://epg-1.iill.top/logo/咪咕.png" group-title="•咪咕「海外」",咪咕直播 𝟙𝟙
+https://tv-1.iill.top/itv/migu-11
+#EXTINF:-1 tvg-logo="https://epg-1.iill.top/logo/咪咕.png" group-title="•咪咕「海外」",咪咕直播 𝟙𝟚
+https://tv-1.iill.top/itv/migu-12
+#EXTINF:-1 tvg-logo="https://epg-1.iill.top/logo/咪咕.png" group-title="•咪咕「海外」",咪咕直播 𝟙𝟛
+https://tv-1.iill.top/itv/migu-13
+#EXTINF:-1 tvg-logo="https://epg-1.iill.top/logo/咪咕.png" group-title="•咪咕「海外」",咪咕直播 𝟙𝟜
+https://tv-1.iill.top/itv/migu-14
+#EXTINF:-1 tvg-logo="https://epg-1.iill.top/logo/咪咕.png" group-title="•咪咕「海外」",咪咕直播 𝟙𝟝
+https://tv-1.iill.top/itv/migu-15
+#EXTINF:-1 tvg-logo="https://epg-1.iill.top/logo/咪咕.png" group-title="•咪咕「海外」",咪咕直播 𝟙𝟞
+https://tv-1.iill.top/itv/migu-16
+#EXTINF:-1 tvg-logo="https://epg-1.iill.top/logo/咪咕.png" group-title="•咪咕「海外」",咪咕直播 𝟙𝟟
+https://tv-1.iill.top/itv/migu-17
+#EXTINF:-1 tvg-logo="https://epg-1.iill.top/logo/咪咕.png" group-title="•咪咕「海外」",咪咕直播 𝟙𝟠
+https://tv-1.iill.top/itv/migu-18
+#EXTINF:-1 tvg-logo="https://epg-1.iill.top/logo/咪咕.png" group-title="•咪咕「海外」",咪咕直播 𝟙𝟡
+https://tv-1.iill.top/itv/migu-19
+#EXTINF:-1 tvg-logo="https://epg-1.iill.top/logo/咪咕.png" group-title="•咪咕「海外」",咪咕直播 𝟚𝟘
+https://tv-1.iill.top/itv/migu-20
+#EXTINF:-1 tvg-logo="https://epg-1.iill.top/logo/咪咕.png" group-title="•咪咕「海外」",咪咕直播 𝟚𝟙
+https://tv-1.iill.top/itv/migu-21
+#EXTINF:-1 tvg-logo="https://epg-1.iill.top/logo/咪咕.png" group-title="•咪咕「海外」",咪咕直播 𝟚𝟚
+https://tv-1.iill.top/itv/migu-22
+#EXTINF:-1 tvg-logo="https://epg-1.iill.top/logo/咪咕.png" group-title="•咪咕「海外」",咪咕直播 𝟚𝟛
+https://tv-1.iill.top/itv/migu-23
+#EXTINF:-1 tvg-logo="https://epg-1.iill.top/logo/咪咕.png" group-title="•咪咕「海外」",咪咕直播 𝟚𝟜
+https://tv-1.iill.top/itv/migu-24
+#EXTINF:-1 tvg-logo="https://epg-1.iill.top/logo/咪咕.png" group-title="•咪咕「海外」",咪咕直播 𝟚𝟝
+https://tv-1.iill.top/itv/migu-25
+#EXTINF:-1 tvg-logo="https://epg-1.iill.top/logo/咪咕.png" group-title="•咪咕「海外」",咪咕直播 𝟚𝟞
+https://tv-1.iill.top/itv/migu-26
+#EXTINF:-1 tvg-logo="https://epg-1.iill.top/logo/咪咕.png" group-title="•咪咕「海外」",咪咕直播 𝟚𝟟
+https://tv-1.iill.top/itv/migu-27
+#EXTINF:-1 tvg-logo="https://epg-1.iill.top/logo/咪咕.png" group-title="•咪咕「海外」",咪咕直播 𝟚𝟠
+https://tv-1.iill.top/itv/migu-28
+#EXTINF:-1 tvg-logo="https://epg-1.iill.top/logo/咪咕.png" group-title="•咪咕「海外」",咪咕直播 𝟚𝟡
+https://tv-1.iill.top/itv/migu-29
+#EXTINF:-1 tvg-logo="https://epg-1.iill.top/logo/咪咕.png" group-title="•咪咕「海外」",咪咕直播 𝟛𝟘
+https://tv-1.iill.top/itv/migu-30
+#EXTINF:-1 tvg-logo="https://epg-1.iill.top/logo/咪咕.png" group-title="•咪咕「海外」",咪咕直播 𝟛𝟙
+https://tv-1.iill.top/itv/migu-31
+#EXTINF:-1 tvg-logo="https://epg-1.iill.top/logo/咪咕.png" group-title="•咪咕「海外」",咪咕直播 𝟛𝟚
+https://tv-1.iill.top/itv/migu-32
+#EXTINF:-1 tvg-logo="https://epg-1.iill.top/logo/咪咕.png" group-title="•咪咕「海外」",咪咕直播 𝟛𝟛
+https://tv-1.iill.top/itv/migu-33
+#EXTINF:-1 tvg-logo="https://epg-1.iill.top/logo/咪咕.png" group-title="•咪咕「海外」",咪咕直播 𝟛𝟜
+https://tv-1.iill.top/itv/migu-34
+#EXTINF:-1 tvg-logo="https://epg-1.iill.top/logo/咪咕.png" group-title="•咪咕「海外」",咪咕直播 𝟛𝟝
+https://tv-1.iill.top/itv/migu-35
+#EXTINF:-1 tvg-logo="https://epg-1.iill.top/logo/咪咕.png" group-title="•咪咕「海外」",咪咕直播 𝟛𝟞
+https://tv-1.iill.top/itv/migu-36
+#EXTINF:-1 tvg-logo="https://epg-1.iill.top/logo/咪咕.png" group-title="•咪咕「海外」",咪咕直播 𝟛𝟟
+https://tv-1.iill.top/itv/migu-37
+#EXTINF:-1 tvg-logo="https://epg-1.iill.top/logo/咪咕.png" group-title="•咪咕「海外」",咪咕直播 𝟛𝟠
+https://tv-1.iill.top/itv/migu-38
+
+#EXTINF:-1 tvg-id="翡翠台" tvg-name="翡翠台" tvg-logo="https://epg-1.iill.top/logo/翡翠台.png" group-title="•港澳「限制」", 翡翠台
+https://yang-1989.eu.org/live/TVB-Jade
+#EXTINF:-1 tvg-id="無綫新聞台" tvg-name="無綫新聞台" tvg-logo="https://epg-1.iill.top/logo/無綫新聞台.png" group-title="•港澳「限制」",無綫新聞台
+https://yang-1989.eu.org/live/TVB-News-Channel
+#EXTINF:-1 tvg-id="TVB PLUS" tvg-name="TVB PLUS" tvg-logo="https://epg-1.iill.top/logo/TVBPlus.png" group-title="•港澳「限制」",TVB Plus
+https://yang-1989.eu.org/live/TVB-Plus
+#EXTINF:-1 tvg-id="NOW新聞台" tvg-name="NOW新聞台" tvg-logo="https://epg-1.iill.top/logo/NOW新聞台.png" group-title="•港澳「限制」",now新聞台
+https://yang-1989.eu.org/live/now-332
+#EXTINF:-1 tvg-id="NOW財經台" tvg-name="NOW財經台" tvg-logo="https://epg-1.iill.top/logo/NOW財經台.png" group-title="•港澳「限制」",now財經台
+https://yang-1989.eu.org/live/now-333
+#EXTINF:-1 tvg-id="VIUTV" tvg-name="VIUTV" tvg-logo="https://epg-1.iill.top/logo/ViuTV.png" group-title="•港澳「限制」",ViuTV
+https://yang-1989.eu.org/live/ViuTV
+#EXTINF:-1 tvg-id="VIUTVSIX" tvg-name="VIUTVSIX" tvg-logo="https://epg-1.iill.top/logo/ViuTVsix.png" group-title="•港澳「限制」",ViuTVsix
+https://yang-1989.eu.org/live/ViuTVsix
+#EXTINF:-1 tvg-id="美亞電影台" tvg-name="美亞電影台" tvg-logo="https://epg-1.iill.top/logo/美亞電影台.png" group-title="•港澳「限制」",美亞電影台
+https://yang-1989.eu.org/live/Mei-Ah-Movie-Channel
+#EXTINF:-1 tvg-id="TVN" tvg-name="TVN" tvg-logo="https://epg-1.iill.top/logo/tvN.png" group-title="•港澳「限制」",tvN
+https://yang-1989.eu.org/live/tvN
+
+#EXTINF:-1 tvg-id="鳳凰衛視中文台" tvg-name="鳳凰衛視中文台" tvg-logo="https://epg-1.iill.top/logo/凤凰中文.png" http-user-agent="FengWatch/5.4.14" group-title="•港澳「限制」",鳳凰衛視·中文
+https://tv-1.iill.top/phenix/fhzw
+#EXTINF:-1 tvg-id="鳳凰衛視資訊台" tvg-name="鳳凰衛視資訊台" tvg-logo="https://epg-1.iill.top/logo/凤凰资讯.png" http-user-agent="FengWatch/5.4.14" group-title="•港澳「限制」",鳳凰衛視·資訊
+https://tv-1.iill.top/phenix/fhzx
+#EXTINF:-1 tvg-id="鳳凰衛視香港台" tvg-name="鳳凰衛視香港台" tvg-logo="https://epg-1.iill.top/logo/凤凰香港.png" http-user-agent="FengWatch/5.4.14" group-title="•港澳「限制」",鳳凰衛視·香港
+https://tv-1.iill.top/phenix/fhhk
+#EXTINF:-1 tvg-id="HOY 國際財經台" tvg-name="HOY 國際財經台" tvg-logo="https://epg-1.iill.top/logo/HOY.png" group-title="•港澳「限制」",HOY 國際財經台「限HK」
+https://hoytv-live-stream.hoy.tv/ch76/index-fhd.m3u8
+#EXTINF:-1 tvg-id="HOY TV" tvg-name="HOY TV" tvg-logo="https://epg-1.iill.top/logo/HOY.png" group-title="•港澳「限制」",HOY TV「限HK」
+https://hoytv-live-stream.hoy.tv/ch77/index-fhd.m3u8
+#EXTINF:-1 tvg-id="HOY 資訊台" tvg-name="HOY 資訊台" tvg-logo="https://epg-1.iill.top/logo/HOY.png" group-title="•港澳「限制」",HOY 資訊台「限HK」
+https://hoytv-live-stream.hoy.tv/ch78/index-fhd.m3u8
+#EXTINF:-1 tvg-id="RTHK31" tvg-name="RTHK31" tvg-logo="https://epg-1.iill.top/logo/RTHK31.png" group-title="•港澳「限制」",RTHK 31「限HK」
+https://rthktv31-live.akamaized.net/hls/live/2036818/RTHKTV31/stream5/streamPlaylist.m3u8
+#EXTINF:-1 tvg-id="RTHK32" tvg-name="RTHK32" tvg-logo="https://epg-1.iill.top/logo/RTHK32.png" group-title="•港澳「限制」",RTHK 32「限HK」
+https://rthktv32-live.akamaized.net/hls/live/2036819/RTHKTV32/stream5/streamPlaylist.m3u8
+#EXTINF:-1 tvg-id="RTHK33" tvg-name="RTHK33" tvg-logo="https://epg-1.iill.top/logo/RTHK33.png" group-title="•港澳「限制」",RTHK 33
+https://rthktv33-live.akamaized.net/hls/live/2101641/RTHKTV33/stream05/streamPlaylist.m3u8
+#EXTINF:-1 tvg-id="RTHK34" tvg-name="RTHK34" tvg-logo="https://epg-1.iill.top/logo/RTHK34.png" group-title="•港澳「限制」",RTHK 34
+https://rthktv34-live.akamaized.net/hls/live/2101642/RTHKTV34/stream05/streamPlaylist.m3u8
+#EXTINF:-1 tvg-id="RTHK35" tvg-name="RTHK35" tvg-logo="https://epg-1.iill.top/logo/RTHK35.png" group-title="•港澳「限制」",RTHK 35
+https://rthktv35-live.akamaized.net/hls/live/2101643/RTHKTV35/stream05/streamPlaylist.m3u8
+#EXTINF:-1 tvg-id="香港卫视" tvg-name="香港卫视" tvg-logo="https://epg-1.iill.top/logo/香港卫视.png" group-title="•港澳「限制」",香港衛視
+http://zhibo.hkstv.tv/livestream/mutfysrq/playlist.m3u8
+#EXTINF:-1 tvg-id="莲花卫视" tvg-name="莲花卫视" tvg-logo="https://epg-1.iill.top/logo/澳门莲花.png" group-title="•港澳「限制」",澳門蓮花
+http://1033946631.cloudvdn.com/a.m3u8?domain=live-hdl.macaulotustv.com&player=1&streamid=lotustv:lotustv/macaulotustv&v3=1
+#EXTINF:-1 tvg-id="澳视卫星" tvg-name="澳视卫星" tvg-logo="https://epg-1.iill.top/logo/澳门Macau.png" group-title="•港澳「限制」",澳門Macau
+https://live5.tdm.com.mo/ch3/ch3.live/playlist.m3u8
+#EXTINF:-1 tvg-id="澳视葡文" tvg-name="澳视葡文" tvg-logo="https://epg-1.iill.top/logo/澳视葡文.png" group-title="•港澳「限制」",澳門葡文
+https://live5.tdm.com.mo/ch2/ch2.live/playlist.m3u8
+#EXTINF:-1 tvg-id="澳视澳门" tvg-name="澳视澳门" tvg-logo="https://epg-1.iill.top/logo/澳视澳门.png" group-title="•港澳「限制」",澳視澳門
+https://live5.tdm.com.mo/ch1/ch1.live/playlist.m3u8
+#EXTINF:-1 tvg-id="澳视资讯" tvg-name="澳视资讯" tvg-logo="https://epg-1.iill.top/logo/澳门资讯.png" group-title="•港澳「限制」",澳門資訊
+https://live5.tdm.com.mo/ch5/info_ch5.live/playlist.m3u8
+#EXTINF:-1 tvg-id="澳视体育" tvg-name="澳视体育" tvg-logo="https://epg-1.iill.top/logo/澳门体育.png" group-title="•港澳「限制」",澳門體育
+https://live5.tdm.com.mo/ch4/sport_ch4.live/playlist.m3u8
+#EXTINF:-1 tvg-id="澳视综艺" tvg-name="澳视综艺" tvg-logo="https://epg-1.iill.top/logo/澳门综艺.png" group-title="•港澳「限制」",澳門綜藝
+https://live5.tdm.com.mo/ch6/hd_ch6.live/playlist.m3u8
