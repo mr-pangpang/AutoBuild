@@ -1,13 +1,69 @@
-name: Clear Workflow Runs
+name: Clean Workflow Runs
+
+# 可以手动触发或按计划触发
 on:
   workflow_dispatch:
+    inputs:
+      workflowName:
+        description: '要清理的工作流文件名（包括.yml）'
+        required: true
+        type: string
+      keepLatest:
+        description: '保留最新的多少条记录'
+        required: true
+        type: number
+        default: 5
+  schedule:
+    # 每周日凌晨2点运行
+    - cron: '0 2 * * 0'
+
 jobs:
-  clear - runs:
-    runs-on: ubuntu - latest
+  clean-runs:
+    runs-on: ubuntu-latest
     steps:
       - name: Delete old workflow runs
-        uses: peter - evans/delete - workflow - runs@v2
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          retention - days: 7
-          keep - latest: 5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          WORKFLOW_NAME: ${{ github.event.inputs.workflowName || 'ci.yml' }} # 默认清理ci.yml
+          KEEP_LATEST: ${{ github.event.inputs.keepLatest || 5 }}
+        run: |
+          # 获取工作流ID
+          WORKFLOW_ID=$(gh api repos/$REPO/actions/workflows | jq -r ".workflows[] | select(.name == \"$WORKFLOW_NAME\") | .id")
+          
+          if [ -z "$WORKFLOW_ID" ]; then
+            echo "未找到名为 $WORKFLOW_NAME 的工作流"
+            exit 1
+          fi
+          
+          echo "找到工作流 ID: $WORKFLOW_ID"
+          
+          # 获取工作流运行记录，按创建时间排序（最新的在前）
+          RUNS=$(gh api repos/$REPO/actions/workflows/$WORKFLOW_ID/runs | jq -r '.workflow_runs | sort_by(.created_at) | reverse | .[].id')
+          
+          # 转换为数组
+          RUN_IDS=($RUNS)
+          TOTAL=${#RUN_IDS[@]}
+          
+          echo "找到 $TOTAL 条工作流记录"
+          
+          # 如果记录数小于等于要保留的数量，则不执行删除
+          if [ $TOTAL -le $KEEP_LATEST ]; then
+            echo "记录数 $TOTAL 小于等于要保留的 $KEEP_LATEST 条，不执行删除"
+            exit 0
+          fi
+          
+          # 计算要删除的记录数量
+          DELETE_COUNT=$((TOTAL - KEEP_LATEST))
+          echo "将删除 $DELETE_COUNT 条旧记录，保留最新的 $KEEP_LATEST 条"
+          
+          # 从第 KEEP_LATEST 条开始删除（数组索引从0开始）
+          for ((i=KEEP_LATEST; i<TOTAL; i++)); do
+            RUN_ID=${RUN_IDS[i]}
+            echo "删除工作流记录 ID: $RUN_ID"
+            gh api --method DELETE repos/$REPO/actions/runs/$RUN_ID
+            # 避免API请求过于频繁
+            sleep 1
+          done
+          
+          echo "清理完成"
