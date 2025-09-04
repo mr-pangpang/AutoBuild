@@ -1,12 +1,16 @@
-name: 'Clear Workflow Runs'
+name: Clear Workflow Runs
 on:
-  workflow_dispatch: # 允许手动触发此工作流
+  workflow_dispatch:    # 手动触发
     inputs:
       retain_days:
         description: '保留最近多少天的运行记录？'
         required: true
-        default: '7'
+        default: '30'
         type: number
+      workflow_name:
+        description: '要清理的工作流文件名（例如 ci.yml）'
+        required: true
+        type: string
   schedule:
     # 每天 UTC 时间 00:00 运行一次（北京时间 08:00）
     - cron: '0 0 * * *'
@@ -14,16 +18,46 @@ on:
 jobs:
   cleanup:
     runs-on: ubuntu-latest
-    permissions:
-      # 必须授予删除权限
-      actions: write
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup GitHub CLI
+        run: |
+          type -p curl >/dev/null || (sudo apt update && sudo apt install curl -y)
+          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg \
+          && sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg \
+          && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
+          && sudo apt update \
+          && sudo apt install gh -y
+
       - name: Delete old workflow runs
-        uses: actions/delete-workflow-runs@v2
-        with:
-          # 对于手动触发，使用手动输入的参数
-          retain_days: ${{ github.event.inputs.retain_days || 30 }}
-          # 要删除哪个工作流的记录？留空则默认为当前工作流（即这个清理工作流本身）
-          # 如果你想清理其他工作流，在这里指定其文件名（不包含路径）
-          # workflow_name: your-other-workflow-name.yml
-          keep_minimum_runs: 5 # 无论如何，至少为每个工作流保留最近的 N 次运行
+        env:
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}  # 使用你的 PAT_TOKEN
+          RETAIN_DAYS: ${{ github.event.inputs.retain_days || 30 }}
+          TARGET_WORKFLOW: ${{ github.event.inputs.workflow_name || 'your-default-workflow.yml' }}
+        run: |
+          # 计算截止日期
+          cutoff_date=$(date -u -d "$RETAIN_DAYS days ago" +"%Y-%m-%d")
+          echo "🗑️  Deleting runs from workflow '$TARGET_WORKFLOW' older than $cutoff_date"
+
+          # 获取符合条件的运行ID列表
+          echo "📋 Fetching run IDs to delete..."
+          run_ids=$(gh run list -R "${{ github.repository }}" -w "$TARGET_WORKFLOW" --json databaseId,createdAt,status -q ".[] | select(.createdAt < \"$cutoff_date\") | .databaseId" | head -n 50)
+
+          if [ -z "$run_ids" ]; then
+            echo "✅ No old runs found to delete."
+            exit 0
+          fi
+
+          # 循环删除每一个运行记录
+          count=0
+          for id in $run_ids; do
+            echo "🧹 Deleting run ID: $id"
+            gh run delete "$id" -R "${{ github.repository }}" --confirm
+            count=$((count + 1))
+            # 稍微延迟一下，避免触发API速率限制
+            sleep 0.5
+          done
+
+          echo "🎉 Cleanup completed! Deleted $count run(s)."
