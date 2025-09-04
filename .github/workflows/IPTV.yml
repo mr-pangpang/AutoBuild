@@ -1,8 +1,8 @@
-name: IPTV
+name: Iptv
 
 on:
   schedule:
-    - cron: '0 0 * * *'  # 每天UTC凌晨执行
+    - cron: '0 0 * * *'  # 每天凌晨执行
   workflow_dispatch:  # 手动触发优先测试
 
 jobs:
@@ -19,9 +19,9 @@ jobs:
 
       - name: 下载文件到根目录
         run: |
-          echo "开始下载文件"
+          echo "开始下载文件: http://123.56.43.183/tv/TV.txt"
           # 下载并显示HTTP状态码，便于排查
-          curl -v --retry 3 --max-time 30 "https://tv-1.iill.top/m3u/Gather" -o "TV.txt"
+          curl -v --retry 3 --max-time 30 "http://123.56.43.183/tv/TV.txt" -o "TV.txt"
           
           # 强制检查下载结果（即使curl不报错，也验证文件存在）
           if [ ! -f "TV.txt" ]; then
@@ -70,10 +70,10 @@ jobs:
           git config --global user.email "actions-bot@github.com"
           
           # 添加文件
-          git add "TV/TV.txt"
+          git add "TV.txt"
           
           # 提交（允许首次创建的空提交提示）
-          commit_msg="Auto-update TV.txt: $(date -u +'%Y-%m-%d %H:%M UTC')"
+          commit_msg="Auto-update TV.txt: $(TZ='Asia/Shanghai' date +'%Y-%m-%d %H:%M CST')"
           if ! git commit -m "$commit_msg"; then
             echo "⚠️ 提交命令返回错误，尝试强制提交"
             # 极端情况：文件存在但git未识别，强制提交
