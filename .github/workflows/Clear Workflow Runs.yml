@@ -1,0 +1,13 @@
+name: Clear Workflow Runs
+on:
+  workflow_dispatch:
+jobs:
+  clear - runs:
+    runs - on: ubuntu - latest
+    steps:
+      - name: Delete old workflow runs
+        uses: peter - evans/delete - workflow - runs@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          retention - days: 7
+          keep - latest: 5
