@@ -1,159 +1,29 @@
-name: 清理工作流运行记录
-
-# 触发方式：手动触发、定时触发
+name: 'Clear Workflow Runs'
 on:
-  workflow_dispatch:
+  workflow_dispatch: # 允许手动触发此工作流
     inputs:
-      workflowFileName:
-        description: '要清理的工作流文件名(如: ci.yml)'
+      retain_days:
+        description: '保留最近多少天的运行记录？'
         required: true
-        type: string
-      keepLatest:
-        description: '保留最新的记录数量'
-        required: true
+        default: '7'
         type: number
-        default: 10
-      olderThanDays:
-        description: '只删除早于指定天数的记录(0表示不限制)'
-        required: false
-        type: number
-        default: 0
-      dryRun:
-        description: '是否只预览不实际删除'
-        required: false
-        type: boolean
-        default: false
-  
   schedule:
-    # 每周一凌晨3点自动运行
-    - cron: '0 3 * * 1'
+    # 每天 UTC 时间 00:00 运行一次（北京时间 08:00）
+    - cron: '0 0 * * *'
 
 jobs:
-  clean-workflow-runs:
+  cleanup:
     runs-on: ubuntu-latest
     permissions:
-      actions: write  # 明确需要的权限
-    
+      # 必须授予删除权限
+      actions: write
     steps:
-      - name: 检查GitHub CLI
-        run: |
-          if ! command -v gh &> /dev/null; then
-            echo "安装GitHub CLI"
-            curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
-            echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
-            sudo apt update
-            sudo apt install gh -y
-          fi
-          gh --version
-      
-      - name: 配置认证
-        run: |
-          echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
-      
-      - name: 获取工作流ID
-        id: get_workflow
-        run: |
-          WORKFLOW_NAME="${{ github.event.inputs.workflowFileName || 'ci.yml' }}"
-          echo "正在查找工作流: $WORKFLOW_NAME"
-          
-          # 获取工作流ID
-          WORKFLOW_ID=$(gh api repos/${{ github.repository }}/actions/workflows \
-            | jq -r ".workflows[] | select(.path | endswith(\"$WORKFLOW_NAME\")) | .id")
-          
-          if [ -z "$WORKFLOW_ID" ] || [ "$WORKFLOW_ID" = "null" ]; then
-            echo "错误: 未找到工作流 $WORKFLOW_NAME"
-            exit 1
-          fi
-          
-          echo "找到工作流ID: $WORKFLOW_ID"
-          echo "workflow_id=$WORKFLOW_ID" >> $GITHUB_OUTPUT
-      
-      - name: 获取工作流运行记录
-        id: get_runs
-        run: |
-          WORKFLOW_ID=${{ steps.get_workflow.outputs.workflow_id }}
-          OLDER_THAN_DAYS=${{ github.event.inputs.olderThanDays || 0 }}
-          
-          echo "获取工作流 $WORKFLOW_ID 的运行记录..."
-          
-          # 获取所有运行记录并按创建时间排序(最新的在前)
-          RUNS=$(gh api repos/${{ github.repository }}/actions/workflows/$WORKFLOW_ID/runs \
-            | jq -r '.workflow_runs | sort_by(.created_at) | reverse | .[] | .id + "|" + .created_at')
-          
-          # 过滤早于指定天数的记录
-          if [ $OLDER_THAN_DAYS -gt 0 ]; then
-            echo "只保留最近 $OLDER_THAN_DAYS 天的记录"
-            CUTOFF_DATE=$(date -d "$OLDER_THAN_DAYS days ago" --iso-8601=seconds)
-            echo " cutoff日期: $CUTOFF_DATE"
-            
-            FILTERED_RUNS=$(echo "$RUNS" | while IFS='|' read -r id date; do
-              if [ "$date" \< "$CUTOFF_DATE" ]; then
-                echo "$id|$date"
-              fi
-            done)
-            RUNS="$FILTERED_RUNS"
-          fi
-          
-          # 保存结果
-          echo "$RUNS" > runs.txt
-          TOTAL=$(echo "$RUNS" | wc -l | xargs)
-          
-          echo "找到符合条件的记录数: $TOTAL"
-          echo "total_runs=$TOTAL" >> $GITHUB_OUTPUT
-      
-      - name: 清理工作流记录
-        run: |
-          WORKFLOW_ID=${{ steps.get_workflow.outputs.workflow_id }}
-          KEEP_LATEST=${{ github.event.inputs.keepLatest || 10 }}
-          DRY_RUN=${{ github.event.inputs.dryRun || false }}
-          TOTAL_RUNS=${{ steps.get_runs.outputs.total_runs }}
-          
-          if [ $TOTAL_RUNS -eq 0 ]; then
-            echo "没有符合条件的记录需要清理"
-            exit 0
-          fi
-          
-          # 转换为数组
-          RUN_IDS=($(awk -F'|' '{print $1}' runs.txt))
-          RUN_DATES=($(awk -F'|' '{print $2}' runs.txt))
-          
-          # 计算要删除的记录数
-          if [ $TOTAL_RUNS -le $KEEP_LATEST ]; then
-            echo "记录总数($TOTAL_RUNS)小于等于保留数量($KEEP_LATEST)，无需清理"
-            exit 0
-          fi
-          
-          DELETE_COUNT=$((TOTAL_RUNS - KEEP_LATEST))
-          echo "准备删除 $DELETE_COUNT 条记录，保留最新的 $KEEP_LATEST 条"
-          
-          # 执行删除
-          for ((i=KEEP_LATEST; i<TOTAL_RUNS; i++)); do
-            RUN_ID=${RUN_IDS[i]}
-            RUN_DATE=${RUN_DATES[i]}
-            echo "----------------------------------------"
-            echo "处理记录 #$((i+1)): ID=$RUN_ID ($RUN_DATE)"
-            
-            if [ "$DRY_RUN" = "true" ]; then
-              echo "[预览模式] 将要删除记录 ID: $RUN_ID"
-            else
-              echo "正在删除记录 ID: $RUN_ID"
-              gh api --method DELETE repos/${{ github.repository }}/actions/runs/$RUN_ID
-              
-              # 检查命令执行结果
-              if [ $? -eq 0 ]; then
-                echo "成功删除记录 ID: $RUN_ID"
-              else
-                echo "警告: 删除记录 ID:$RUN_ID 失败"
-              fi
-              
-              # 控制API请求频率
-              sleep 2
-            fi
-          done
-          
-          echo "----------------------------------------"
-          if [ "$DRY_RUN" = "true" ]; then
-            echo "预览模式完成，未实际删除任何记录"
-          else
-            echo "清理完成，共删除 $DELETE_COUNT 条记录"
-          fi
+      - name: Delete old workflow runs
+        uses: actions/delete-workflow-runs@v2
+        with:
+          # 对于手动触发，使用手动输入的参数
+          retain_days: ${{ github.event.inputs.retain_days || 30 }}
+          # 要删除哪个工作流的记录？留空则默认为当前工作流（即这个清理工作流本身）
+          # 如果你想清理其他工作流，在这里指定其文件名（不包含路径）
+          # workflow_name: your-other-workflow-name.yml
+          keep_minimum_runs: 5 # 无论如何，至少为每个工作流保留最近的 N 次运行
