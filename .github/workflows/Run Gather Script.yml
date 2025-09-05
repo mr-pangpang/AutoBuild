@@ -11,10 +11,17 @@ jobs:
   gather:
     runs-on: windows-latest
     
+    # 需要给工作流写入权限
+    permissions:
+      contents: write
+    
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
-      
+      with:
+        # 使用PAT令牌进行推送
+        token: ${{ secrets.GITHUB_TOKEN }}
+        
     - name: Create TV directory if not exists
       run: if not exist TV mkdir TV
       shell: cmd
@@ -27,9 +34,14 @@ jobs:
       
     - name: Commit and push changes
       run: |
-        git config user.email "action@github.com"
-        git config user.name "GitHub Action"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git config user.name "github-actions[bot]"
+        
         git add TV/Gather.txt
-        git diff --cached --quiet || git commit -m "Auto-update Gather.txt"
-        git push
+        
+        # 检查是否有变化
+        git diff --cached --quiet || (
+          git commit -m "Auto-update Gather.txt"
+          git push
+        )
       shell: cmd
