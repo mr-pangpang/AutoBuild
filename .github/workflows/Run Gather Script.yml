@@ -2,8 +2,6 @@ name: Run Gather Script
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: '0 0 * * *'
   push:
     branches: [ main ]
     paths:
@@ -16,40 +14,22 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
-        
-    - name: Run Gather.bat script and save to TV directory
-      run: |
-        # 切换到script目录并运行批处理文件
-        Set-Location -Path "script"
-        Write-Host "Running Gather.bat from: $(Get-Location)"
-        
-        # 执行批处理文件并捕获输出
-        cmd /c "Gather.bat" 2>&1 | Out-File -FilePath "..\TV\Gather.txt" -Encoding UTF8
-        
-        # 返回根目录
-        Set-Location -Path ".."
-      shell: pwsh
       
-    - name: Display output for debugging
-      run: Get-Content -Path "TV\Gather.txt"
-      shell: pwsh
-      if: always()
-        
-    - name: Commit and push if changed
+    - name: Create TV directory if not exists
+      run: if not exist TV mkdir TV
+      shell: cmd
+      
+    - name: Run Gather.bat and save output
       run: |
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
-        
-        # 检查文件是否有变化
-        $hasChanges = git status --porcelain | Select-String "TV/Gather.txt"
-        if ($hasChanges) {
-          git add TV/Gather.txt
-          git commit -m "Update Gather.txt from automated workflow [$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')]"
-          git push
-          Write-Host "Changes committed and pushed"
-        } else {
-          Write-Host "No changes to commit"
-        }
-      shell: pwsh
+        cd script
+        call Gather.bat > ..\TV\Gather.txt 2>&1
+      shell: cmd
+      
+    - name: Commit and push changes
+      run: |
+        git config user.email "action@github.com"
+        git config user.name "GitHub Action"
+        git add TV/Gather.txt
+        git diff --cached --quiet || git commit -m "Auto-update Gather.txt"
+        git push
+      shell: cmd
