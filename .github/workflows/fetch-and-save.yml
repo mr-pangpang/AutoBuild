@@ -1,33 +1,35 @@
 name: 抓取内容并保存到仓库
 
-# 触发条件：1. 每天凌晨2点自动执行；2. 手动触发
 on:
   schedule:
-    - cron: '0 2 * * *'  # 定时触发（UTC时间，北京时间需+8小时，如想北京时间凌晨2点则写 '0 18 * * *'）
-  workflow_dispatch:  # 手动触发（在 GitHub 仓库的 Actions 页面可点击运行）
+    - cron: '0 2 * * *'  # 可根据需要调整定时时间
+  workflow_dispatch:
+
+# 关键：添加权限配置，赋予 GITHUB_TOKEN 内容写入权限
+permissions:
+  contents: write  # 允许读写仓库内容（包括推送代码）
+  actions: read    # 可选，仅读取 Actions 相关信息，最小权限原则
 
 jobs:
   fetch-and-save:
-    runs-on: windows-latest  # 批处理需 Windows 环境
+    runs-on: windows-latest
     steps:
-      # 步骤1：拉取仓库代码到 runner
       - name: 检出仓库代码
         uses: actions/checkout@v4
+        # 可选：若仓库是主分支（如 main），可添加 fetch-depth: 0 确保能提交
+        with:
+          fetch-depth: 0
 
-      # 步骤2：执行批处理脚本，抓取内容
       - name: 运行批处理抓取内容
         run: |
-          .\fetch-content.bat  # 执行批处理脚本
-        shell: cmd  # 指定使用 cmd 执行批处理
+          .\fetch-content.bat
+        shell: cmd
 
-      # 步骤3：将抓取的文件提交并推送到仓库
       - name: 提交并推送文件到仓库
         run: |
-          git config --global user.name "GitHub Actions"  # 配置提交者姓名
-          git config --global user.email "actions@github.com"  # 配置提交者邮箱
-          git add Gather.txt  # 添加抓取的文件（若文件路径不同需修改）
-          # 检查是否有变更，有则提交
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          git add Gather.txt
           git diff --quiet --cached || (git commit -m "Auto update: Fetch latest content" && git push)
         env:
-          # 授权 GitHub Actions 推送代码（仓库默认已提供 GITHUB_TOKEN）
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # 此时已拥有 write 权限
