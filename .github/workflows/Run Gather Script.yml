@@ -1,0 +1,64 @@
+name: Run Gather Script
+
+on:
+  workflow_dispatch:  # 允许手动触发
+  schedule:
+    - cron: '0 0 * * *'  # 每天UTC时间00:00运行（可选）
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'Gather.bat'
+
+jobs:
+  gather:
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        
+    - name: List directory contents (for debugging)
+      run: dir
+      shell: cmd
+      
+    - name: Check if Gather.bat exists
+      run: |
+        if exist Gather.bat (
+          echo Gather.bat found
+        ) else (
+          echo Gather.bat not found!
+          dir
+          exit 1
+        )
+      shell: cmd
+        
+    - name: Run Gather.bat script
+      run: |
+        call Gather.bat > output.txt 2>&1
+      shell: cmd
+      
+    - name: Display output for debugging
+      run: type output.txt
+      shell: cmd
+      if: always()  # 即使脚本失败也显示输出
+        
+    - name: Create TV directory if not exists
+      run: |
+        if not exist TV mkdir TV
+      shell: cmd
+        
+    - name: Move output to TV directory
+      run: |
+        move output.txt TV\Gather.txt
+      shell: cmd
+        
+    - name: Commit and push if changed
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        
+        git add TV/Gather.txt
+        git diff --staged --quiet || (git commit -m "Update Gather.txt from automated workflow" && git push)
+      shell: cmd
