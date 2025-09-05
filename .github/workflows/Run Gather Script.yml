@@ -11,33 +11,36 @@ jobs:
   gather:
     runs-on: windows-latest
     
+    # 关键：给工作流写入权限
     permissions:
       contents: write
     
     steps:
-    - name: Checkout repository
+    - name: Checkout with token
       uses: actions/checkout@v4
       with:
-        token: ${{ secrets.GITHUB_TOKEN }}
+        token: ${{ secrets.GITHUB_TOKEN }}  # 使用GITHUB_TOKEN进行认证
         
-    - name: Create TV directory
-      run: if not exist TV mkdir TV
-      shell: cmd
-      
-    - name: Run Gather.bat
+    - name: Run script and create output
       run: |
+        if not exist TV mkdir TV
         cd script
         call Gather.bat > ..\TV\Gather.txt 2>&1
       shell: cmd
       
-    - name: Commit and Push changes
-      uses: EndBug/add-and-commit@v9
-      with:
-        # 使用GITHUB_TOKEN进行认证
-        token: ${{ secrets.GITHUB_TOKEN }}
-        author_name: github-actions[bot]
-        author_email: github-actions[bot]@users.noreply.github.com
-        message: 'Auto-update Gather.txt'
-        add: 'TV/Gather.txt'
-        # 只在文件有变化时推送
-        push: true
+    - name: Setup Git identity
+      run: |
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+        git config --global user.name "github-actions[bot]"
+      
+    - name: Push changes
+      run: |
+        git add TV/Gather.txt
+        # 检查是否有变化，避免空提交
+        if not git diff --cached --quiet; then
+          git commit -m "Auto-update Gather.txt"
+          git push
+        else
+          echo "No changes to commit"
+        fi
+      shell: cmd
