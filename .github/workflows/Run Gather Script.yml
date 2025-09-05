@@ -3,11 +3,11 @@ name: Run Gather Script
 on:
   workflow_dispatch:  # 允许手动触发
   schedule:
-    - cron: '0 0 * * *'  # 每天UTC时间00:00运行（可选）
+    - cron: '0 0 * * *'  # 每天UTC时间00:00运行
   push:
-    branches: [ main, master ]
+    branches: [ main ]
     paths:
-      - 'Gather.bat'
+      - 'script/Gather.bat'  # 监控script目录下的Gather.bat文件变化
 
 jobs:
   gather:
@@ -23,20 +23,23 @@ jobs:
       run: dir
       shell: cmd
       
-    - name: Check if Gather.bat exists
+    - name: Check if Gather.bat exists in script directory
       run: |
-        if exist Gather.bat (
-          echo Gather.bat found
+        if exist script\Gather.bat (
+          echo Gather.bat found in script directory
         ) else (
-          echo Gather.bat not found!
+          echo Gather.bat not found in script directory!
           dir
+          dir script
           exit 1
         )
       shell: cmd
         
-    - name: Run Gather.bat script
+    - name: Run Gather.bat script from script directory
       run: |
-        call Gather.bat > output.txt 2>&1
+        cd script
+        call Gather.bat > ..\output.txt 2>&1
+        cd ..
       shell: cmd
       
     - name: Display output for debugging
@@ -60,5 +63,5 @@ jobs:
         git config --local user.name "GitHub Action"
         
         git add TV/Gather.txt
-        git diff --staged --quiet || (git commit -m "Update Gather.txt from automated workflow" && git push)
+        git diff --staged --quiet || (git commit -m "Update Gather.txt from automated workflow [$(date)]" && git push)
       shell: cmd
