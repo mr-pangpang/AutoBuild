@@ -1,0 +1,43 @@
+name: Run Gather Script
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - 'script/Gather.bat'
+
+jobs:
+  gather:
+    runs-on: windows-latest
+    
+    permissions:
+      contents: write
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Create TV directory
+      run: if not exist TV mkdir TV
+      shell: cmd
+      
+    - name: Run Gather.bat
+      run: |
+        cd script
+        call Gather.bat > ..\TV\Gather.txt 2>&1
+      shell: cmd
+      
+    - name: Commit and Push changes
+      uses: EndBug/add-and-commit@v9
+      with:
+        # 使用GITHUB_TOKEN进行认证
+        token: ${{ secrets.GITHUB_TOKEN }}
+        author_name: github-actions[bot]
+        author_email: github-actions[bot]@users.noreply.github.com
+        message: 'Auto-update Gather.txt'
+        add: 'TV/Gather.txt'
+        # 只在文件有变化时推送
+        push: true
