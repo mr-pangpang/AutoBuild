@@ -1,26 +1,26 @@
 @echo off
 setlocal enabledelayedexpansion
 
-:: 原始GitHub链接
+:: 下载链接
 set "original_url=https://tv-1.iill.top/m3u/Gather"
 
-:: 目标文件路径
-set "target_file=.\Gather.txt"
+:: 直接获取URL内容并显示
+echo 正在获取URL内容...
+echo.
+echo ==================== 内容开始 ====================
+echo.
 
-:: 创建目标目录（如果不存在）
-for %%F in ("%target_file%") do (
-    if not exist "%%~dpF" mkdir "%%~dpF"
-)
+:: 使用curl获取内容并直接输出到控制台
+curl -L "%original_url%"
 
-:: 下载文件
-echo 正在下载...
-curl -L -o "%target_file%" "%original_url%"
 if !errorlevel! equ 0 (
-    echo 下载成功！
-    echo 文件已保存到: %target_file%
+    echo.
+    echo ==================== 内容结束 ====================
+    echo 获取成功！
 ) else (
-    echo 下载失败！错误代码: !errorlevel!
+    echo.
+    echo 获取失败！错误代码: !errorlevel!
     exit /b !errorlevel!
 )
 
-:: pause
+pause
