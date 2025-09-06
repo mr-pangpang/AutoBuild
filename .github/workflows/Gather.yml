@@ -1,87 +1,61 @@
-# 工作流名称：自动抓取TV内容并更新到仓库
 name: Auto Gather & Update TV Content
-
-# 触发条件：支持定时执行 + 手动触发（可按需调整）
 on:
-  # 定时执行：每6小时一次（Cron表达式格式：分 时 日 月 周，UTC时区）
   schedule:
-    - cron: "0 */6 * * *"
-  # 手动触发：在GitHub仓库「Actions」页面可手动点击运行
+    - cron: "0 */6 * * *"  # UTC时区，每6小时执行
   workflow_dispatch:
     inputs:
       reason:
-        description: "手动触发原因（可选）"
+        description: "手动触发原因"
         required: false
         default: "手动更新TV内容"
 
-# 任务定义：单任务（Windows环境执行脚本）
 jobs:
   gather-tv-content:
-    # 运行环境：最新Windows系统（BAT脚本需Windows环境）
     runs-on: windows-latest
     steps:
-      # 步骤1：拉取仓库代码到工作流环境
       - name: Checkout Repository Code
         uses: actions/checkout@v4
         with:
-          # 拉取完整历史（确保TV目录可正常读写）
           fetch-depth: 0
 
-      # 步骤2：配置curl（Windows默认无curl，需手动安装，确保与本地可用版本一致）
+      # 👇 替换为修复后的curl安装步骤 👇
       - name: Install & Configure curl
         run: |
-          # 下载最新版curl（64位Windows）
-          Invoke-WebRequest -Uri "https://curl.se/windows/dl-8.8.0/curl-8.8.0_7-win64-mingw.zip" -OutFile "curl.zip"
-          # 解压到指定目录（避免路径空格问题）
+          Invoke-WebRequest -Uri "https://curl.se/windows/dl-8.9.1/curl-8.9.1_1-win64-mingw.zip" -OutFile "curl.zip" -UseBasicParsing
           Expand-Archive -Path "curl.zip" -DestinationPath "C:\curl" -Force
-          # 将curl路径添加到系统环境变量（让脚本能找到curl.exe）
-          echo "C:\curl\curl-8.8.0_7-win64-mingw\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8
-          # 验证curl安装成功
+          $curlFolder = Get-ChildItem -Path "C:\curl" -Directory | Select-Object -First 1 | ForEach-Object { $_.FullName }
+          echo "$curlFolder\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8
           curl --version
+        shell: pwsh
 
-      # 步骤3：执行Gather.bat脚本（核心步骤，抓取内容）
       - name: Run Gather.bat to Fetch Content
-        working-directory: ./script  # 切换到脚本所在目录（script文件夹）
+        working-directory: ./script
         run: |
-          # 打印当前路径，便于日志排查
           echo "当前工作目录：$(Get-Location)"
-          # 执行BAT脚本（强制使用cmd.exe运行，确保兼容性）
           cmd /c .\Gather.bat
-          # 输出脚本日志内容（便于排查失败原因）
           if (Test-Path "fetch-tv-log.txt") {
             echo "===== Gather.bat 执行日志 ====="
             Get-Content "fetch-tv-log.txt"
             echo "=============================="
           }
 
-      # 步骤4：提交并推送tv.txt到仓库（仅当文件存在且有变化时执行）
       - name: Commit & Push tv.txt to Repository
         run: |
-          # 配置Git提交身份（GitHub Actions默认身份）
           git config --global user.name "GitHub Actions Bot"
           git config --global user.email "actions@github.com"
-          
-          # 检查tv.txt是否存在（避免无文件时报错）
           if (Test-Path "../TV/tv.txt") {
-            # 暂存tv.txt文件
             git add ../TV/tv.txt
-            # 检查是否有文件变化（无变化则不提交）
             $commitMsg = "Auto update TV content (scheduled at $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss UTC'))"
             git diff --cached --quiet || (git commit -m "$commitMsg" && echo "提交成功：$commitMsg")
           } else {
-            echo "警告：未找到tv.txt文件，可能抓取失败，需查看脚本日志"
-            exit 1  # 无文件时标记步骤失败，便于在Actions页面提醒
+            echo "警告：未找到tv.txt文件，抓取失败"
+            exit 1
           }
-          
-          # 推送提交到仓库（使用GitHub Actions默认令牌，有仓库读写权限）
           git push origin main --force-with-lease
         env:
-          # 仓库访问令牌（默认由GitHub提供，无需手动配置）
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # 步骤5：失败通知（可选，抓取失败时发送GitHub通知）
       - name: Notify on Failure
-        if: failure()  # 仅当前面步骤失败时执行
+        if: failure()
         run: |
-          echo "工作流执行失败！请查看「Run Gather.bat to Fetch Content」步骤的日志，重点检查curl和脚本输出"
-          # 可扩展：添加邮件/钉钉/企业微信通知（需额外配置密钥）
+          echo "工作流执行失败！请查看「Run Gather.bat to Fetch Content」步骤日志"
