@@ -1,25 +1,27 @@
-name: 自动抓取TV链接
-on:
-  workflow_dispatch:  # 手动触发
-  schedule:
-    - cron: '0 8 * * *'  # 每日8点自动执行（UTC时间，需换算成北京时间+8）
-
 jobs:
   fetch-tv:
     runs-on: windows-latest
     steps:
       - name: 拉取仓库代码
         uses: actions/checkout@v4
+        # 拉取后仓库目录结构（确保与你的实际结构一致）：
+        # 仓库根目录/
+        # ├─ script/          （你的脚本目录）
+        # │  └─ Gather.bat    （你的BAT脚本，已修正名称）
+        # └─ TV/              （结果保存目录，对应脚本中SAVE_DIR=../TV）
 
-      - name: 执行抓取脚本
+      - name: 执行Gather.bat脚本（修复路径+环境）
         run: |
-          cd script  # 进入脚本所在目录（根据你的实际路径调整）
-          .\fetch-tv.bat
+          # 直接从仓库根目录定位script下的Gather.bat，路径绝对可靠
+          .\script\Gather.bat
+        shell: cmd.exe  # 强制用CMD环境执行BAT，避免PowerShell兼容性问题
 
-      - name: 提交结果到仓库（可选）
+      - name: 提交抓取结果到仓库（可选）
         run: |
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
-          git add ../TV/tv-source.m3u fetch-tv-log.txt
-          git commit -m "Auto update TV source: $(date +'%Y-%m-%d')"
+          # 确保路径与脚本中配置一致：TV目录在仓库根目录，日志在script目录
+          git add .\TV\tv-source.m3u .\script\fetch-tv-log.txt
+          git commit -m "Auto update TV source: $(Get-Date -Format 'yyyy-MM-dd')"
           git push
+        shell: pwsh.exe
