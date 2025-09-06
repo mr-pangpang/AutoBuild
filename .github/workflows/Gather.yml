@@ -1,43 +1,42 @@
-name: Run Gather Script
+name: 自动抓取TV链接内容（适配仓库路径）
 
+# 触发方式：手动触发 + 每日定时（可修改时间）
 on:
-  workflow_dispatch:
-  push:
-    branches: [ main ]
-    paths:
-      - 'script/Gather.bat'
+  workflow_dispatch:  # 手动触发（Actions页面点击运行）
+  schedule:
+    - cron: '0 16 * * *'  # 每日UTC 16点 = 北京时间0点，可按需调整
 
 jobs:
-  gather:
-    runs-on: windows-latest
-    
-    permissions:
-      contents: write
-    
+  fetch-tv:
+    runs-on: windows-latest  # 与本地CMD环境一致，避免兼容性问题
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-      with:
-        token: ${{ secrets.GITHUB_TOKEN }}
-        
-    - name: Create TV directory
-      run: if not exist TV mkdir TV
-      shell: cmd
-      
-    - name: Run Gather.bat
-      run: |
-        cd script
-        call Gather.bat > ..\TV\Gather.txt 2>&1
-      shell: cmd
-      
-    - name: Commit and Push changes
-      uses: EndBug/add-and-commit@v9
-      with:
-        # 使用GITHUB_TOKEN进行认证
-        token: ${{ secrets.GITHUB_TOKEN }}
-        author_name: github-actions[bot]
-        author_email: github-actions[bot]@users.noreply.github.com
-        message: 'Auto-update Gather.txt'
-        add: 'TV/Gather.txt'
-        # 只在文件有变化时推送
-        push: true
+      # 步骤1：拉取仓库代码（必须，否则无法访问script/下的脚本）
+      - name: 拉取仓库代码
+        uses: actions/checkout@v4
+
+      # 步骤2：安装curl（确保script/脚本中的请求工具可用）
+      - name: 安装curl（Windows环境）
+        run: |
+          if (-not (Get-Command curl -ErrorAction SilentlyContinue)) {
+            choco install curl -y --no-progress  # 用Chocolatey安装curl
+            $env:Path += ";C:\ProgramData\chocolatey\bin"  # 刷新环境变量
+          }
+          curl --version  # 验证安装
+        shell: powershell
+
+      # 步骤3：执行script/下的抓取脚本，结果保存到TV/目录
+      - name: 运行抓取脚本（输出到TV/路径）
+        run: |
+          cd script  # 进入脚本目录
+          .\fetch-tv-link.bat  # 执行抓取脚本
+        shell: cmd
+
+      # 步骤4：上传TV/目录的结果文件（便于排查问题）
+      - name: 上传TV目录结果
+        uses: actions/upload-artifact@v4
+        with:
+          name: TV-抓取结果
+          path: |
+            TV/  # 完整上传TV目录下的所有文件
+            script/fetch-tv-log.txt  # 上传脚本执行日志
+        if: always()  # 即使失败也上传日志，方便定位问题
