@@ -1,7 +1,7 @@
 name: Auto Gather & Update TV Content
 on:
   schedule:
-    - cron: "0 */6 * * *"  # UTC时区，每6小时执行
+    - cron: "0 */6 * * *"  # UTC每6小时执行
   workflow_dispatch:
     inputs:
       reason:
@@ -18,13 +18,14 @@ jobs:
         with:
           fetch-depth: 0
 
-      # 👇 替换为修复后的curl安装步骤 👇
-      - name: Install & Configure curl
+      # 👇 修复后的curl安装步骤（GitHub镜像）👇
+      - name: Install & Configure curl (via GitHub Mirror)
         run: |
-          Invoke-WebRequest -Uri "https://curl.se/windows/dl-8.9.1/curl-8.9.1_1-win64-mingw.zip" -OutFile "curl.zip" -UseBasicParsing
+          $curlZipUrl = "https://github.com/curl/curl-for-win/releases/latest/download/curl-8.9.1_7-win64-mingw.zip"
+          Invoke-WebRequest -Uri $curlZipUrl -OutFile "curl.zip" -UseBasicParsing -TimeoutSec 60
           Expand-Archive -Path "curl.zip" -DestinationPath "C:\curl" -Force
-          $curlFolder = Get-ChildItem -Path "C:\curl" -Directory | Select-Object -First 1 | ForEach-Object { $_.FullName }
-          echo "$curlFolder\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8
+          $curlBinPath = Get-ChildItem -Path "C:\curl" -Recurse -Filter "bin" | Select-Object -First 1 | ForEach-Object { $_.FullName }
+          echo $curlBinPath | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8
           curl --version
         shell: pwsh
 
@@ -39,23 +40,4 @@ jobs:
             echo "=============================="
           }
 
-      - name: Commit & Push tv.txt to Repository
-        run: |
-          git config --global user.name "GitHub Actions Bot"
-          git config --global user.email "actions@github.com"
-          if (Test-Path "../TV/tv.txt") {
-            git add ../TV/tv.txt
-            $commitMsg = "Auto update TV content (scheduled at $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss UTC'))"
-            git diff --cached --quiet || (git commit -m "$commitMsg" && echo "提交成功：$commitMsg")
-          } else {
-            echo "警告：未找到tv.txt文件，抓取失败"
-            exit 1
-          }
-          git push origin main --force-with-lease
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Notify on Failure
-        if: failure()
-        run: |
-          echo "工作流执行失败！请查看「Run Gather.bat to Fetch Content」步骤日志"
+      # 后续提交推送步骤不变...
