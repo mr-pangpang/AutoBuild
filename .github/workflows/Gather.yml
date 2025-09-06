@@ -1,66 +1,75 @@
 name: Auto Gather & Update TV Content
 on:
-  # 定时执行：UTC每6小时一次（北京时间需减8小时，如想北京时间12点执行，改为 cron: "0 4 * * *"）
   schedule:
-    - cron: "0 */6 * * *"
-  # 手动触发：在GitHub Actions页面可点击运行
+    - cron: "0 */6 * * *"  # UTC每6小时执行
   workflow_dispatch:
     inputs:
       reason:
-        description: "手动触发原因（可选）"
+        description: "手动触发原因"
         required: false
         default: "手动更新TV内容"
 
 jobs:
   gather-tv-content:
-    runs-on: windows-latest  # 必须用Windows环境（PowerShell命令依赖）
+    runs-on: windows-latest
     steps:
-      # 步骤1：拉取仓库代码（含script/Gather.bat和TV目录）
       - name: Checkout Repository Code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # 拉取完整历史，确保TV目录可读写
+          fetch-depth: 0
 
-      # 步骤2：执行Gather.bat（核心抓取步骤，无需curl）
-      - name: Run Gather.bat to Fetch TV Content
-        working-directory: ./script  # 切换到脚本所在目录
+      # 👇 优化后的脚本执行步骤（含完整日志）👇
+      - name: Run Gather.bat & Show Full Logs
+        working-directory: ./script
         run: |
-          echo "当前工作目录：$(Get-Location)"
-          # 执行BAT脚本并输出日志（便于排查）
+          echo "=== 1. 目录结构检查 ==="
+          echo "Script目录文件："
+          dir
+          echo "`nTV目录文件（上级目录）："
+          dir ../TV 2>&1 || echo "TV目录暂未创建"  # 允许目录不存在，不报错
+          
+          echo "`n=== 2. 执行Gather.bat ==="
           cmd /c .\Gather.bat
-          # 打印脚本日志，供Actions页面查看
+          $batExitCode = $LASTEXITCODE
+          echo "Gather.bat 错误码：$batExitCode"
+          
+          echo "`n=== 3. 完整脚本日志 ==="
           if (Test-Path "fetch-tv-log.txt") {
-            echo "===== Gather.bat 执行日志 ====="
-            Get-Content "fetch-tv-log.txt"
-            echo "=============================="
+            Get-Content "fetch-tv-log.txt" -Raw
+          } else {
+            echo "ERROR: 日志文件缺失，脚本未启动！"
+            exit 1
+          }
+          
+          if ($batExitCode -ne 0) {
+            echo "`n=== 脚本执行失败，终止 ==="
+            exit 1
           }
 
-      # 步骤3：提交并推送tv.txt到仓库（仅当文件存在时执行）
-      - name: Commit & Push tv.txt to GitHub
+      - name: Commit & Push tv.txt
         run: |
-          # 配置Git提交身份
           git config --global user.name "GitHub Actions Bot"
           git config --global user.email "actions@github.com"
           
-          # 检查tv.txt是否存在（避免无文件时报错）
           if (Test-Path "../TV/tv.txt") {
-            git add ../TV/tv.txt  # 暂存文件
-            # 生成带时间的提交信息
-            $commitMsg = "Auto update TV content (scheduled at $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss UTC'))"
-            # 仅当文件有变化时提交（避免空提交）
+            $fileSize = (Get-Item "../TV/tv.txt").Length
+            if ($fileSize -eq 0) {
+              echo "警告：tv.txt为空文件，不提交！"
+              exit 1
+            }
+            git add ../TV/tv.txt
+            $commitMsg = "Auto update TV content (UTC: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss'))"
             git diff --cached --quiet || (git commit -m "$commitMsg" && echo "提交成功：$commitMsg")
           } else {
-            echo "警告：未找到tv.txt文件，抓取失败！"
-            exit 1  # 标记步骤失败，便于Actions页面提醒
+            echo "警告：未找到tv.txt，抓取失败！"
+            exit 1
           }
           
-          # 推送提交到仓库（使用GitHub默认令牌，有读写权限）
           git push origin main --force-with-lease
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # 无需手动配置，GitHub自动生成
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # 步骤4：失败通知（抓取失败时提示查看日志）
       - name: Notify on Failure
-        if: failure()  # 仅当前面步骤失败时执行
+        if: failure()
         run: |
-          echo "工作流执行失败！请查看「Run Gather.bat to Fetch TV Content」步骤的日志，重点关注PowerShell错误信息"
+          echo "工作流失败！请重点查看「Run Gather.bat & Show Full Logs」步骤的脚本日志，定位PowerShell或路径问题"
