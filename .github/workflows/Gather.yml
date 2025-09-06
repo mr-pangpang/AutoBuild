@@ -1,42 +1,25 @@
-name: 自动抓取TV链接内容（适配仓库路径）
-
-# 触发方式：手动触发 + 每日定时（可修改时间）
+name: 自动抓取TV链接
 on:
-  workflow_dispatch:  # 手动触发（Actions页面点击运行）
+  workflow_dispatch:  # 手动触发
   schedule:
-    - cron: '0 16 * * *'  # 每日UTC 16点 = 北京时间0点，可按需调整
+    - cron: '0 8 * * *'  # 每日8点自动执行（UTC时间，需换算成北京时间+8）
 
 jobs:
   fetch-tv:
-    runs-on: windows-latest  # 与本地CMD环境一致，避免兼容性问题
+    runs-on: windows-latest
     steps:
-      # 步骤1：拉取仓库代码（必须，否则无法访问script/下的脚本）
       - name: 拉取仓库代码
         uses: actions/checkout@v4
 
-      # 步骤2：安装curl（确保script/脚本中的请求工具可用）
-      - name: 安装curl（Windows环境）
+      - name: 执行抓取脚本
         run: |
-          if (-not (Get-Command curl -ErrorAction SilentlyContinue)) {
-            choco install curl -y --no-progress  # 用Chocolatey安装curl
-            $env:Path += ";C:\ProgramData\chocolatey\bin"  # 刷新环境变量
-          }
-          curl --version  # 验证安装
-        shell: powershell
+          cd script  # 进入脚本所在目录（根据你的实际路径调整）
+          .\fetch-tv.bat
 
-      # 步骤3：执行script/下的抓取脚本，结果保存到TV/目录
-      - name: 运行抓取脚本（输出到TV/路径）
+      - name: 提交结果到仓库（可选）
         run: |
-          cd script  # 进入脚本目录
-          .\fetch-tv-link.bat  # 执行抓取脚本
-        shell: cmd
-
-      # 步骤4：上传TV/目录的结果文件（便于排查问题）
-      - name: 上传TV目录结果
-        uses: actions/upload-artifact@v4
-        with:
-          name: TV-抓取结果
-          path: |
-            TV/  # 完整上传TV目录下的所有文件
-            script/fetch-tv-log.txt  # 上传脚本执行日志
-        if: always()  # 即使失败也上传日志，方便定位问题
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          git add ../TV/tv-source.m3u fetch-tv-log.txt
+          git commit -m "Auto update TV source: $(date +'%Y-%m-%d')"
+          git push
