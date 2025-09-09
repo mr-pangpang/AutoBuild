@@ -1,73 +1,54 @@
-name: Auto-Sync TV Source to Second Repo
+name: AutoBuild DiskTV
 on:
-  workflow_dispatch:
   schedule:
-    - cron: '0 13 * * *'
+    - cron: "0 */2 * * *"  # 每两小时执行（分钟 小时 日 月 周）
+  workflow_dispatch:  # 手动触发
 
 jobs:
-  sync-tv:
+  download-and-save:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
-    defaults:
-      run:
-        shell: bash
     steps:
-      - name: Checkout First Repo
+      - name: 拉取当前仓库代码
         uses: actions/checkout@v4
         with:
-          repository: mr-pangpang/AutoBuild
-          fetch-depth: 1
-          quiet: true
+          persist-credentials: false
 
-      - name: Download TV.txt
-        id: download
+      - name: 从指定链接下载TV.txt
         run: |
-          mkdir -p ./temp && chmod 755 ./temp
-          curl -sSL --retry 5 --retry-delay 2 --connect-timeout 10 \
-            -o ./temp/tv.txt "http://123.56.43.183/tv/TV.txt"
-          if [ ! -f ./temp/tv.txt ] || [ $(stat -c %s ./temp/tv.txt) -lt 100 ]; then
-            echo "::error title=Download Failed::TV.txt is missing or too small (invalid)"
-            exit 1
-          fi
-          echo "file_size=$(du -sh ./temp/tv.txt | awk '{print $1}')" >> $GITHUB_OUTPUT
-          echo "✅ Downloaded valid TV.txt (size: ${{ steps.download.outputs.file_size }})"
+          curl -f -o TV.txt "http://123.56.43.183/tv/TV.txt"
+          echo "下载完成，文件大小：$(du -h TV.txt)"
 
-      - name: Push to Second Repo (dpdisk/file)
-        env:
-          TOKEN: ${{ secrets.PANGPANG }}
-          REPO_URL: "github.com/dpdisk/file.git"
-          BRANCH: "main"
+      - name: 检查dpdisk仓库是否存在
+        id: check_repo
         run: |
-          git config --global user.name "Actions-Sync"
+          RESPONSE=$(curl -s -w "%{http_code}" -H "Authorization: token ${{ secrets.PANGPANG }}" "https://api.github.com/repos/dpdisk/file")
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          echo "repo_exists=$([ "$HTTP_CODE" -eq 200 ] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
+
+      - name: 若仓库不存在则创建
+        if: steps.check_repo.outputs.repo_exists == 'false'
+        run: |
+          curl -X POST -H "Authorization: token ${{ secrets.PANGPANG }}" \
+          -H "Content-Type: application/json" \
+          -d '{"name": "file", "auto_init": true}' \
+          "https://api.github.com/user/repos"
+
+      - name: 克隆dpdisk仓库
+        run: |
+          git clone https://${{ secrets.PANGPANG }}@github.com/dpdisk/file.git target-repo
+
+      - name: 移动文件到目标路径
+        run: |
+          mkdir -p target-repo/file
+          mv TV.txt target-repo/file/
+          echo "文件已移动到：target-repo/file/TV.txt"
+
+      - name: 提交并推送dpdisk仓库变更
+        run: |
+          cd target-repo
+          git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
-          git clone "https://$TOKEN@$REPO_URL" ./second-repo --quiet
-          [ $? -ne 0 ] && { echo "::error title=Clone Failed::Repository not found or token invalid"; exit 1; }
-          
-          cd ./second-repo
-          rm -f tv.txt
-          cp ../temp/tv.txt ./tv.txt
-          [ ! -f tv.txt ] && { echo "::error title=Copy Failed::tv.txt missing after copy"; exit 1; }
-          
-          git add tv.txt
-          git diff --cached --quiet && { echo "ℹ️ No changes to tv.txt, skip push"; exit 0; }
-          git commit -m "Auto-sync TV source ($(date +'%Y-%m-%d'))" --quiet
-          git push origin $BRANCH --quiet
-          
-          [ $? -eq 0 ] && echo "✅ Pushed to $REPO_URL (branch: $BRANCH)" || { echo "::error title=Push Failed::Permission denied or branch error"; exit 1; }
-
-      - name: Clean Temporary Files
-        if: success()
-        run: |
-          rm -rf ./temp ./second-repo
-          echo "🧹 Cleaned temporary files"
-
-      - name: Sync Summary
-        if: always()
-        run: |
-          echo "==================== Sync Result ===================="
-          if [ "${{ job.status }}" = "success" ]; then
-            echo "✅ All steps completed: TV.txt (size: ${{ steps.download.outputs.file_size }}) synced to second repo"
-          else
-            echo "❌ Sync failed: Check previous steps for errors (e.g., download/clone/push)"
-          fi
-          echo "======================================================"
+          git add file/TV.txt
+          git commit -m "定时下载并保存TV.txt（$(date +%Y-%m-%d_%H:%M:%S)）" || echo "无文件变更，无需提交"
+          git push https://${{ secrets.PANGPANG }}
+@github.com/dpdisk/file.git HEAD:main
