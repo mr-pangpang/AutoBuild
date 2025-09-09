@@ -95,8 +95,9 @@ jobs:
             exit 1
           fi
 
-      # 步骤5：清理临时文件
+      # 步骤5：清理临时文件（已修复echo缩进语法错误）
       - name: Clean Up
         if: always()
-        run: rm -rf ./temp ./second-repo
-        echo "🧹 Temporary files cleaned up"
+        run: |
+          rm -rf ./temp ./second-repo
+          echo "🧹 Temporary files cleaned up"
