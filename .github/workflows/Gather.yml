@@ -1,81 +1,66 @@
 name: Auto-Sync TV Source to Second Repo
-# 触发机制：手动触发 + 每日定时（北京时间8点，可按需调整）
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 8 * * *'
+    - cron: '0 13 * * *'
 
 jobs:
   sync-tv:
     runs-on: ubuntu-latest
-    timeout-minutes: 8  # 缩短超时时间，提升效率
+    timeout-minutes: 8
     defaults:
       run:
-        shell: bash  # 统一Shell环境，避免兼容性问题
+        shell: bash
     steps:
-      # 步骤1：拉取第一仓库（仅当依赖仓库内脚本时保留，无依赖可删除）
       - name: Checkout First Repo
         uses: actions/checkout@v4
         with:
           repository: mr-pangpang/AutoBuild
           fetch-depth: 1
-          quiet: true  # 减少冗余日志
+          quiet: true
 
-      # 步骤2：下载TV源（核心步骤，优化网络容错）
       - name: Download TV.txt
         id: download
         run: |
-          # 1. 创建临时目录（加权限防权限问题）
           mkdir -p ./temp && chmod 755 ./temp
-          # 2. 增强下载配置：5次重试、10秒超时、显示进度
           curl -sSL --retry 5 --retry-delay 2 --connect-timeout 10 \
             -o ./temp/tv.txt "http://123.56.43.183/tv/TV.txt"
-          # 3. 双重校验文件有效性
           if [ ! -f ./temp/tv.txt ] || [ $(stat -c %s ./temp/tv.txt) -lt 100 ]; then
             echo "::error title=Download Failed::TV.txt is missing or too small (invalid)"
             exit 1
           fi
-          # 4. 输出文件信息到步骤变量，方便后续查看
           echo "file_size=$(du -sh ./temp/tv.txt | awk '{print $1}')" >> $GITHUB_OUTPUT
           echo "✅ Downloaded valid TV.txt (size: ${{ steps.download.outputs.file_size }})"
 
-      # 步骤3：推送至第二仓库（优化授权逻辑+分支适配）
       - name: Push to Second Repo (dpdisk/file)
         env:
           TOKEN: ${{ secrets.PANGPANG }}
-          REPO_URL: "github.com/dpdisk/file.git"  # 简化地址格式
-          BRANCH: "main"  # 分支可配置，若为master则修改此处
+          REPO_URL: "github.com/dpdisk/file.git"
+          BRANCH: "main"
         run: |
-          # 1. 配置Git（精简身份信息）
           git config --global user.name "Actions-Sync"
           git config --global user.email "actions@github.com"
-          # 2. 克隆仓库（用精简地址，避免重复拼接）
           git clone "https://$TOKEN@$REPO_URL" ./second-repo --quiet
           [ $? -ne 0 ] && { echo "::error title=Clone Failed::Repository not found or token invalid"; exit 1; }
           
-          # 3. 替换文件（加安全校验）
           cd ./second-repo
-          rm -f tv.txt  # 强制删除旧文件（防残留）
+          rm -f tv.txt
           cp ../temp/tv.txt ./tv.txt
           [ ! -f tv.txt ] && { echo "::error title=Copy Failed::tv.txt missing after copy"; exit 1; }
           
-          # 4. 提交推送（避免空提交+精简日志）
           git add tv.txt
           git diff --cached --quiet && { echo "ℹ️ No changes to tv.txt, skip push"; exit 0; }
           git commit -m "Auto-sync TV source ($(date +'%Y-%m-%d'))" --quiet
           git push origin $BRANCH --quiet
           
-          # 5. 推送结果校验
           [ $? -eq 0 ] && echo "✅ Pushed to $REPO_URL (branch: $BRANCH)" || { echo "::error title=Push Failed::Permission denied or branch error"; exit 1; }
 
-      # 步骤4：清理（优化执行时机，仅成功时清理，失败保留文件便于排查）
       - name: Clean Temporary Files
-        if: success()  # 仅成功时清理，失败时保留文件供日志排查
+        if: success()
         run: |
           rm -rf ./temp ./second-repo
           echo "🧹 Cleaned temporary files"
 
-      # 步骤5：输出总结（提升可读性，一眼看结果）
       - name: Sync Summary
         if: always()
         run: |
