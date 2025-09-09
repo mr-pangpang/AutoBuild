@@ -1,8 +1,8 @@
 name: AutoBuild DiskTV
 on:
   schedule:
-    - cron: "0 */2 * * *"
-  workflow_dispatch:
+    - cron: "0 */2 * * *"  # 每两小时执行（分钟 小时 日 月 周）
+  workflow_dispatch:  # 手动触发
 
 jobs:
   download-and-save:
@@ -25,29 +25,32 @@ jobs:
           HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
           echo "repo_exists=$([ "$HTTP_CODE" -eq 200 ] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
 
-      - name: 若仓库不存在则创建
+      - name: 若仓库不存在则创建（不初始化README）
         if: steps.check_repo.outputs.repo_exists == 'false'
         run: |
           curl -X POST -H "Authorization: token ${{ secrets.PANGPANG }}" \
           -H "Content-Type: application/json" \
-          -d '{"name": "file", "auto_init": true}' \
+          -d '{"name": "file", "auto_init": false}' \  # auto_init设为false，避免生成默认README
           "https://api.github.com/user/repos"
 
-      - name: 克隆dpdisk/file仓库
+      - name: 克隆dpdisk/file仓库（空仓库首次克隆需指定分支）
         run: |
-          git clone https://${{ secrets.PANGPANG }}@github.com/dpdisk/file.git target-repo
+          # 空仓库首次克隆需添加 -b main 并允许空克隆
+          git clone -b main --single-branch https://${{ secrets.PANGPANG }}@github.com/dpdisk/file.git target-repo || (mkdir -p target-repo && cd target-repo && git init && git remote add origin https://${{ secrets.PANGPANG }}@github.com/dpdisk/file.git && git checkout -b main)
 
-      - name: 移动文件到目标路径
+      - name: 移动文件到目标仓库根目录（不创建file子文件夹）
         run: |
-          mkdir -p target-repo/file
-          mv TV.txt target-repo/file/
-          echo "文件已移动到：target-repo/file/TV.txt"
+          # 直接移动到target-repo根目录，而非子文件夹
+          mv TV.txt target-repo/
+          echo "文件已移动到：target-repo/TV.txt"
 
       - name: 提交并推送dpdisk仓库变更
         run: |
           cd target-repo
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
-          git add file/TV.txt
+          git add TV.txt  # 直接跟踪根目录的TV.txt
+          # 无变更时不报错，直接提示
           git commit -m "定时下载并保存TV.txt（$(date +%Y-%m-%d_%H:%M:%S)）" || echo "无文件变更，无需提交"
+          # 推送变更到main分支
           git push https://${{ secrets.PANGPANG }}@github.com/dpdisk/file.git HEAD:main
