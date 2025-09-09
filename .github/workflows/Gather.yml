@@ -1,8 +1,8 @@
 name: AutoBuild DiskTV
 on:
   schedule:
-    - cron: "0 */2 * * *"  # 每两小时执行（分钟 小时 日 月 周）
-  workflow_dispatch:  # 手动触发
+    - cron: "0 */2 * * *"
+  workflow_dispatch:
 
 jobs:
   download-and-save:
@@ -28,7 +28,6 @@ jobs:
       - name: 若仓库不存在则创建（不初始化README）
         if: steps.check_repo.outputs.repo_exists == 'false'
         run: |
-          # 关键修复：用单行命令+引号包裹，彻底避免反斜杠换行解析问题
           curl -X POST -H "Authorization: token ${{ secrets.PANGPANG }}" -H "Content-Type: application/json" -d '{"name":"file","auto_init":false,"visibility":"public"}' "https://api.github.com/user/repos"
 
       - name: 克隆dpdisk/file仓库（空仓库首次克隆需指定分支）
