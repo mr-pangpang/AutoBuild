@@ -5,73 +5,49 @@ on:
   workflow_dispatch:
 
 jobs:
-  sync-tv-file:
+  download-and-save:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
     steps:
-      - name: Checkout current repo
+      - name: 拉取当前仓库代码
         uses: actions/checkout@v4
         with:
           persist-credentials: false
 
-      - name: Install dependencies (curl)
-        run: sudo apt update && sudo apt install -y curl
-        if: ${{ !success() }}
-
-      - name: Download TV.txt with error handling
+      - name: 从指定链接下载TV.txt
         run: |
-          if ! curl -f -o TV.txt "http://123.56.43.183/tv/TV.txt" --show-error --fail-early; then
-            echo "❌ Failed to download TV.txt from source link"
-            exit 1
-          fi
-          echo -e "✅ Download completed:\n$(ls -lh TV.txt)"
+          curl -f -o TV.txt "http://123.56.43.183/tv/TV.txt"
+          echo "下载完成，文件大小：$(du -h TV.txt)"
 
-      - name: Check if dpdisk/file repo exists
-        id: check-repo
+      - name: 检查dpdisk/file仓库是否存在
+        id: check_repo
         run: |
           RESPONSE=$(curl -s -w "%{http_code}" -H "Authorization: token ${{ secrets.PANGPANG }}" "https://api.github.com/repos/dpdisk/file")
           HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
           echo "repo_exists=$([ "$HTTP_CODE" -eq 200 ] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
-          echo "✅ Check repo result: HTTP $HTTP_CODE → Repo exists: $([ "$HTTP_CODE" -eq 200 ] && echo "Yes" || echo "No")"
 
-      - name: Create dpdisk/file repo if not exists
-        if: steps.check-repo.outputs.repo_exists == 'false'
+      - name: 若仓库不存在则创建
+        if: steps.check_repo.outputs.repo_exists == 'false'
         run: |
-          if ! curl -X POST -H "Authorization: token ${{ secrets.PANGPANG }}" \
-            -H "Content-Type: application/json" \
-            -d '{"name":"file","auto_init":true,"private":false}' \
-            "https://api.github.com/user/repos" --show-error; then
-            echo "❌ Failed to create dpdisk/file repo"
-            exit 1
-          fi
-          echo "✅ Created dpdisk/file repo successfully"
+          curl -X POST -H "Authorization: token ${{ secrets.PANGPANG }}" \
+          -H "Content-Type: application/json" \
+          -d '{"name": "file", "auto_init": true}' \
+          "https://api.github.com/user/repos"
 
-      - name: Clone dpdisk/file repo
+      - name: 克隆dpdisk/file仓库
         run: |
-          git clone --depth 1 https://x:${{ secrets.PANGPANG }}@github.com/dpdisk/file.git target-repo
-          echo "✅ Cloned dpdisk/file repo to target-repo/"
+          git clone https://${{ secrets.PANGPANG }}@github.com/dpdisk/file.git target-repo
 
-      - name: Move TV.txt to target path
+      - name: 移动文件到目标路径
         run: |
           mkdir -p target-repo/file
           mv TV.txt target-repo/file/
-          echo "✅ Moved TV.txt to target-repo/file/"
+          echo "文件已移动到：target-repo/file/TV.txt"
 
-      - name: Commit and push changes
+      - name: 提交并推送dpdisk仓库变更
         run: |
           cd target-repo
-          git config user.name "GitHub Actions"
-          git config user.email "actions@github.com"
-          
-          if git diff --quiet file/TV.txt; then
-            echo "ℹ️ No changes to TV.txt, skip commit"
-            exit 0
-          fi
-          
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
           git add file/TV.txt
-          git commit -m "Sync TV.txt at $(date +%Y-%m-%d_%H:%M:%S %Z)"
-          if ! git push https://x:${{ secrets.PANGPANG }}@github.com/dpdisk/file.git HEAD:main --quiet; then
-            echo "❌ Failed to push changes to dpdisk/file repo"
-            exit 1
-          fi
-          echo "✅ Pushed changes to dpdisk/file repo successfully"
+          git commit -m "定时下载并保存TV.txt（$(date +%Y-%m-%d_%H:%M:%S)）" || echo "无文件变更，无需提交"
+          git push https://${{ secrets.PANGPANG }}@github.com/dpdisk/file.git HEAD:main
