@@ -1,4 +1,4 @@
-name: AutoBuild DiskTV
+name: Gather
 on:
   schedule:
     - cron: "0 */2 * * *"
@@ -13,10 +13,10 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: 从指定链接下载TV.txt
+      - name: 从指定链接下载Gather.txt
         run: |
-          curl -f -o TV.txt "http://123.56.43.183/tv/TV.txt"
-          echo "下载完成，文件大小：$(du -h TV.txt)"
+          curl -f -o Gather.txt "http://123.56.43.183/tv/Gather.txt"
+          echo "下载完成，文件大小：$(du -h Gather.txt)"
 
       - name: 检查dpdisk/file仓库是否存在
         id: check_repo
@@ -36,14 +36,14 @@ jobs:
 
       - name: 移动文件到目标仓库根目录（不创建file子文件夹）
         run: |
-          mv TV.txt target-repo/
-          echo "文件已移动到：target-repo/TV.txt"
+          mv Gather.txt target-repo/
+          echo "文件已移动到：target-repo/Gather.txt"
 
       - name: 提交并推送dpdisk仓库变更
         run: |
           cd target-repo
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
-          git add TV.txt
-          git commit -m "定时下载并保存TV.txt（$(date +%Y-%m-%d_%H:%M:%S)）" || echo "无文件变更，无需提交"
+          git add Gather.txt
+          git commit -m "定时下载并保存Gather.txt（$(date +%Y-%m-%d_%H:%M:%S)）" || echo "无文件变更，无需提交"
           git push https://${{ secrets.PANGPANG }}@github.com/dpdisk/file.git HEAD:main
