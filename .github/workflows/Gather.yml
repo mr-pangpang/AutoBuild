@@ -1,88 +1,102 @@
 name: Gather TV Source & Push to Second Repo
-# 工作流触发方式：1.手动触发；2.每日自动运行（可选，可删除）
 on:
-  workflow_dispatch:  # 允许手动在Actions页面触发
+  workflow_dispatch:  # 手动触发
   schedule:
-    - cron: '0 0 * * *'  # 每日0点自动运行（时区为UTC，如需北京时间可改为'0 8 * * *'）
+    - cron: '0 8 * * *'  # 北京时间每日8点自动运行（可选）
 
 jobs:
   sync-tv-source:
-    runs-on: ubuntu-latest  # 使用Ubuntu运行环境
-    timeout-minutes: 10  # 超时时间10分钟，避免长时间占用资源
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      # 步骤1：拉取第一仓库自身代码（若需依赖仓库内其他脚本，可保留；无依赖可删除此步骤）
+      # 步骤1：拉取第一仓库代码（无依赖可删除）
       - name: Checkout First Repo Code
         uses: actions/checkout@v4
         with:
           repository: mr-pangpang/AutoBuild
-          fetch-depth: 1  # 仅拉取最新1次提交，减少耗时
+          fetch-depth: 1
 
-      # 步骤2：安装必要工具（curl用于下载文件，git已默认安装）
+      # 步骤2：安装依赖（确保curl可用）
       - name: Install Dependencies
-        run: |
-          sudo apt update && sudo apt install -y curl  # 确保curl可用（部分环境可能默认缺少）
+        run: sudo apt update && sudo apt install -y curl
 
-      # 步骤3：下载目标TV源文件（http://123.56.43.183/tv/TV.txt）
+      # 步骤3：下载TV.txt（增加下载失败重试+文件大小检查）
       - name: Download TV.txt from Source URL
-        id: download-tv
         run: |
-          # 创建临时目录存储文件，避免污染仓库
-          mkdir -p ./temp
-          # 下载文件并验证是否成功（检查文件大小>0）
+          mkdir -p ./temp  # 确保临时目录存在
+          # 3次重试下载，避免网络波动
           curl -sSL --retry 3 --output ./temp/tv.txt "http://123.56.43.183/tv/TV.txt"
-          if [ ! -s ./temp/tv.txt ]; then
-            echo "Error: TV.txt download failed or empty"
-            exit 1  # 下载失败则终止工作流
+          # 检查文件是否存在且非空
+          if [ ! -f ./temp/tv.txt ]; then
+            echo "Error: TV.txt not found after download"
+            exit 1
           fi
-          echo "TV.txt downloaded successfully, size: $(du -sh ./temp/tv.txt | awk '{print $1}')"
+          if [ $(stat -c %s ./temp/tv.txt) -eq 0 ]; then
+            echo "Error: TV.txt is empty"
+            exit 1
+          fi
+          echo "✅ TV.txt downloaded successfully (size: $(du -sh ./temp/tv.txt | awk '{print $1}'))"
 
-      # 步骤4：配置Git并推送文件到第二仓库（dpdisk/file）
+      # 步骤4：推送文件到第二仓库（增加路径检查+强制提交）
       - name: Push TV.txt to Second Repository (dpdisk/file)
         env:
-          # 引用第一仓库中存储的密钥（已添加为PANGPANG）
           SECOND_REPO_TOKEN: ${{ secrets.PANGPANG }}
-          SECOND_REPO_URL: "https://github.com/dpdisk/file.git"  # 第二仓库地址
-          SECOND_REPO_BRANCH: "main"  # 第二仓库主分支（若为master则改为master）
+          SECOND_REPO_URL: "https://github.com/dpdisk/file.git"
+          SECOND_REPO_BRANCH: "main"  # 若第二仓库分支是master，改为master
         run: |
-          # 1. 配置Git提交身份
+          # 配置Git身份
           git config --global user.name "GitHub Actions (AutoSync)"
           git config --global user.email "actions-auto-sync@example.com"
 
-          # 2. 克隆第二仓库（使用密钥授权，避免身份验证错误）
-          echo "Cloning second repository: $SECOND_REPO_URL"
-          git clone "https://${SECOND_REPO_TOKEN}@github.com/dpdisk/file.git" ./second-repo
+          # 克隆第二仓库（带Token授权）
+          echo "🔍 Cloning second repository: $SECOND_REPO_URL"
+          git clone "https://${SECOND_REPO_TOKEN}@${SECOND_REPO_URL#https://}" ./second-repo
           if [ $? -ne 0 ]; then
             echo "Error: Failed to clone second repository"
             exit 1
           fi
 
-          # 3. 替换第二仓库中的tv.txt文件
+          # 进入第二仓库目录，检查并复制文件
           cd ./second-repo
-          echo "Replacing tv.txt in second repository"
-          rm -f tv.txt  # 删除原有无效文件（若存在）
-          cp ../temp/tv.txt ./tv.txt  # 复制新下载的文件
-
-          # 4. 检查文件是否有变更，有变更则提交推送
-          if git diff --quiet tv.txt; then
-            echo "TV.txt content is unchanged, no push required"
-            exit 0
+          echo "📂 Current files in second repo: $(ls -l)"
+          
+          # 检查源文件是否存在，再复制
+          if [ ! -f ../temp/tv.txt ]; then
+            echo "Error: Source file ../temp/tv.txt missing"
+            exit 1
+          fi
+          rm -f tv.txt  # 删除旧文件（若存在）
+          cp ../temp/tv.txt ./tv.txt  # 复制新文件
+          
+          # 验证复制结果
+          if [ ! -f tv.txt ]; then
+            echo "Error: Failed to copy tv.txt to second repo"
+            exit 1
           else
-            echo "Committing and pushing updated tv.txt"
-            git add tv.txt
-            git commit -m "Auto-Sync: Update TV source from http://123.56.43.183/tv/TV.txt"
-            # 推送时强制指定分支，避免默认分支不匹配
-            git push origin $SECOND_REPO_BRANCH
-            if [ $? -eq 0 ]; then
-              echo "Success: TV.txt pushed to second repository"
-            else
-              echo "Error: Failed to push to second repository"
-              exit 1
-            fi
+            echo "✅ tv.txt copied to second repo (size: $(du -sh tv.txt | awk '{print $1}'))"
           fi
 
-      # 步骤5：（可选）清理临时文件（避免缓存占用）
-      - name: Clean Up Temporary Files
-        if: always()  # 无论前面步骤成功/失败，都执行清理
-        run: |
-          rm -rf ./temp ./second-repo
-          echo "Temporary files cleaned up"
+          # 强制提交（跳过变更检查，确保首次推送成功）
+          git add tv.txt
+          # 处理空提交（若文件无变更，避免报错）
+          if git diff --cached --quiet; then
+            echo "ℹ️ tv.txt content unchanged, no push needed"
+            exit 0
+          fi
+          git commit -m "Auto-Sync: Update TV source ($(date +'%Y-%m-%d %H:%M:%S'))"
+          echo "🚀 Pushing to $SECOND_REPO_BRANCH branch..."
+          git push origin $SECOND_REPO_BRANCH
+          
+          # 验证推送结果
+          if [ $? -eq 0 ]; then
+            echo "✅ Success: tv.txt pushed to second repository"
+          else
+            echo "Error: Failed to push to second repository"
+            exit 1
+          fi
+
+      # 步骤5：清理临时文件
+      - name: Clean Up
+        if: always()
+        run: rm -rf ./temp ./second-repo
+        echo "🧹 Temporary files cleaned up"
