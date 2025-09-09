@@ -1,75 +1,88 @@
-name: Auto Gather & Update TV Content
+name: Gather TV Source & Push to Second Repo
+# 工作流触发方式：1.手动触发；2.每日自动运行（可选，可删除）
 on:
+  workflow_dispatch:  # 允许手动在Actions页面触发
   schedule:
-    - cron: "0 */6 * * *"  # UTC每6小时执行
-  workflow_dispatch:
-    inputs:
-      reason:
-        description: "手动触发原因"
-        required: false
-        default: "手动更新TV内容"
+    - cron: '0 0 * * *'  # 每日0点自动运行（时区为UTC，如需北京时间可改为'0 8 * * *'）
 
 jobs:
-  gather-tv-content:
-    runs-on: windows-latest
+  sync-tv-source:
+    runs-on: ubuntu-latest  # 使用Ubuntu运行环境
+    timeout-minutes: 10  # 超时时间10分钟，避免长时间占用资源
     steps:
-      - name: Checkout Repository Code
+      # 步骤1：拉取第一仓库自身代码（若需依赖仓库内其他脚本，可保留；无依赖可删除此步骤）
+      - name: Checkout First Repo Code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          repository: mr-pangpang/AutoBuild
+          fetch-depth: 1  # 仅拉取最新1次提交，减少耗时
 
-      # 👇 优化后的脚本执行步骤（含完整日志）👇
-      - name: Run Gather.bat & Show Full Logs
-        working-directory: ./script
+      # 步骤2：安装必要工具（curl用于下载文件，git已默认安装）
+      - name: Install Dependencies
         run: |
-          echo "=== 1. 目录结构检查 ==="
-          echo "Script目录文件："
-          dir
-          echo "`nTV目录文件（上级目录）："
-          dir ../TV 2>&1 || echo "TV目录暂未创建"  # 允许目录不存在，不报错
-          
-          echo "`n=== 2. 执行Gather.bat ==="
-          cmd /c .\Gather.bat
-          $batExitCode = $LASTEXITCODE
-          echo "Gather.bat 错误码：$batExitCode"
-          
-          echo "`n=== 3. 完整脚本日志 ==="
-          if (Test-Path "fetch-tv-log.txt") {
-            Get-Content "fetch-tv-log.txt" -Raw
-          } else {
-            echo "ERROR: 日志文件缺失，脚本未启动！"
-            exit 1
-          }
-          
-          if ($batExitCode -ne 0) {
-            echo "`n=== 脚本执行失败，终止 ==="
-            exit 1
-          }
+          sudo apt update && sudo apt install -y curl  # 确保curl可用（部分环境可能默认缺少）
 
-      - name: Commit & Push tv.txt
+      # 步骤3：下载目标TV源文件（http://123.56.43.183/tv/TV.txt）
+      - name: Download TV.txt from Source URL
+        id: download-tv
         run: |
-          git config --global user.name "GitHub Actions Bot"
-          git config --global user.email "actions@github.com"
-          
-          if (Test-Path "../TV/tv.txt") {
-            $fileSize = (Get-Item "../TV/tv.txt").Length
-            if ($fileSize -eq 0) {
-              echo "警告：tv.txt为空文件，不提交！"
-              exit 1
-            }
-            git add ../TV/tv.txt
-            $commitMsg = "Auto update TV content (UTC: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss'))"
-            git diff --cached --quiet || (git commit -m "$commitMsg" && echo "提交成功：$commitMsg")
-          } else {
-            echo "警告：未找到tv.txt，抓取失败！"
-            exit 1
-          }
-          
-          git push origin main --force-with-lease
+          # 创建临时目录存储文件，避免污染仓库
+          mkdir -p ./temp
+          # 下载文件并验证是否成功（检查文件大小>0）
+          curl -sSL --retry 3 --output ./temp/tv.txt "http://123.56.43.183/tv/TV.txt"
+          if [ ! -s ./temp/tv.txt ]; then
+            echo "Error: TV.txt download failed or empty"
+            exit 1  # 下载失败则终止工作流
+          fi
+          echo "TV.txt downloaded successfully, size: $(du -sh ./temp/tv.txt | awk '{print $1}')"
+
+      # 步骤4：配置Git并推送文件到第二仓库（dpdisk/file）
+      - name: Push TV.txt to Second Repository (dpdisk/file)
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Notify on Failure
-        if: failure()
+          # 引用第一仓库中存储的密钥（已添加为PANGPANG）
+          SECOND_REPO_TOKEN: ${{ secrets.PANGPANG }}
+          SECOND_REPO_URL: "https://github.com/dpdisk/file.git"  # 第二仓库地址
+          SECOND_REPO_BRANCH: "main"  # 第二仓库主分支（若为master则改为master）
         run: |
-          echo "工作流失败！请重点查看「Run Gather.bat & Show Full Logs」步骤的脚本日志，定位PowerShell或路径问题"
+          # 1. 配置Git提交身份
+          git config --global user.name "GitHub Actions (AutoSync)"
+          git config --global user.email "actions-auto-sync@example.com"
+
+          # 2. 克隆第二仓库（使用密钥授权，避免身份验证错误）
+          echo "Cloning second repository: $SECOND_REPO_URL"
+          git clone "https://${SECOND_REPO_TOKEN}@github.com/dpdisk/file.git" ./second-repo
+          if [ $? -ne 0 ]; then
+            echo "Error: Failed to clone second repository"
+            exit 1
+          fi
+
+          # 3. 替换第二仓库中的tv.txt文件
+          cd ./second-repo
+          echo "Replacing tv.txt in second repository"
+          rm -f tv.txt  # 删除原有无效文件（若存在）
+          cp ../temp/tv.txt ./tv.txt  # 复制新下载的文件
+
+          # 4. 检查文件是否有变更，有变更则提交推送
+          if git diff --quiet tv.txt; then
+            echo "TV.txt content is unchanged, no push required"
+            exit 0
+          else
+            echo "Committing and pushing updated tv.txt"
+            git add tv.txt
+            git commit -m "Auto-Sync: Update TV source from http://123.56.43.183/tv/TV.txt"
+            # 推送时强制指定分支，避免默认分支不匹配
+            git push origin $SECOND_REPO_BRANCH
+            if [ $? -eq 0 ]; then
+              echo "Success: TV.txt pushed to second repository"
+            else
+              echo "Error: Failed to push to second repository"
+              exit 1
+            fi
+          fi
+
+      # 步骤5：（可选）清理临时文件（避免缓存占用）
+      - name: Clean Up Temporary Files
+        if: always()  # 无论前面步骤成功/失败，都执行清理
+        run: |
+          rm -rf ./temp ./second-repo
+          echo "Temporary files cleaned up"
