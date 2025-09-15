@@ -13,10 +13,10 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: 从指定链接下载ok.txt
+      - name: 从指定链接下载文件（命名为ok，无后缀）
         run: |
-          curl -f -o ok.txt "http://123.56.43.183/tv/ok.txt"
-          echo "下载完成，文件大小：$(du -h ok.txt)"
+          curl -f -o ok "http://123.56.43.183/tv/ok.txt"
+          echo "下载完成，文件大小：$(du -h ok)"
 
       - name: 检查dpdisk/file仓库是否存在
         id: check_repo
@@ -30,13 +30,13 @@ jobs:
         run: |
           curl -X POST -H "Authorization: token ${{ secrets.PANGPANG }}" -H "Content-Type: application/json" -d '{"name":"file","auto_init":false,"visibility":"public"}' "https://api.github.com/user/repos"
 
-      - name: 克隆dpdisk/file仓库
+      - name: 克隆dpdisk/file仓库（无仓库时初始化）
         run: |
           git clone -b main --single-branch https://${{ secrets.PANGPANG }}@github.com/dpdisk/file.git target-repo || (mkdir -p target-repo && cd target-repo && git init && git remote add origin https://${{ secrets.PANGPANG }}@github.com/dpdisk/file.git && git checkout -b main)
 
       - name: 移动文件到目标仓库根目录
         run: |
-          mv ok.txt target-repo/
+          mv ok target-repo/
           echo "文件已移动到：target-repo/ok"
 
       - name: 提交并推送dpdisk仓库变更
@@ -46,4 +46,4 @@ jobs:
           git config --global user.email "actions@github.com"
           git add ok
           git commit -m "定时下载并保存ok（$(date +%Y-%m-%d_%H:%M:%S)）" || echo "无文件变更，无需提交"
-          git push https://${{ secrets.PANGPANG }}@github.com/dpdisk/file.git HEAD:main
+          git push origin main
