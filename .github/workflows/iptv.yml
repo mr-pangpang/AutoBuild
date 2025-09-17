@@ -15,7 +15,7 @@ jobs:
 
       - name: 从指定链接下载iptv
         run: |
-          curl -f -o iptv "http://123.56.43.183/tv/iptv"
+          curl -f -o iptv "http://123.56.43.183/tv/m3u/iptv"
           echo "下载完成，文件大小：$(du -h iptv)"
 
       - name: 检查dpdisk/file仓库是否存在
