@@ -15,7 +15,7 @@ jobs:
 
       - name: 从指定链接下载sports
         run: |
-          curl -f -o sports "http://123.56.43.183/tv/m3u/sports"
+          curl -f -o sports "https://feiyang.wangdu.site/Sports-VIP-Days.m3u"
           echo "下载完成，文件大小：$(du -h sports)"
 
       - name: 检查dpdisk/file仓库是否存在
