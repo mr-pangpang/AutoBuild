@@ -1,4 +1,4 @@
-name: iptv
+name: migu_video
 on:
   schedule:
     - cron: "0 */2 * * *"
@@ -13,10 +13,10 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: 从指定链接下载iptv
+      - name: 从指定链接下载migu_video
         run: |
-          curl -f -o iptv "http://123.56.43.183/tv/m3u/iptv"
-          echo "下载完成，文件大小：$(du -h iptv)"
+          curl -f -o migu_video "https://raw.githubusercontent.com/develop202/migu_video/refs/heads/main/interface.txt"
+          echo "下载完成，文件大小：$(du -h migu_video)"
 
       - name: 检查dpdisk/file仓库是否存在
         id: check_repo
@@ -25,25 +25,25 @@ jobs:
           HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
           echo "repo_exists=$([ "$HTTP_CODE" -eq 200 ] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
 
-      - name: 若仓库不存在则创建（不初始化README）
+      - name: 若仓库不存在则创建
         if: steps.check_repo.outputs.repo_exists == 'false'
         run: |
           curl -X POST -H "Authorization: token ${{ secrets.PANGPANG }}" -H "Content-Type: application/json" -d '{"name":"file","auto_init":false,"visibility":"public"}' "https://api.github.com/user/repos"
 
-      - name: 克隆dpdisk/file仓库（空仓库首次克隆需指定分支）
+      - name: 克隆dpdisk/file仓库
         run: |
           git clone -b main --single-branch https://${{ secrets.PANGPANG }}@github.com/dpdisk/file.git target-repo || (mkdir -p target-repo && cd target-repo && git init && git remote add origin https://${{ secrets.PANGPANG }}@github.com/dpdisk/file.git && git checkout -b main)
 
-      - name: 移动文件到目标仓库根目录（不创建file子文件夹）
+      - name: 移动文件到目标仓库根目录
         run: |
-          mv iptv target-repo/
-          echo "文件已移动到：target-repo/iptv"
+          mv migu_video target-repo/
+          echo "文件已移动到：target-repo/migu_video"
 
       - name: 提交并推送dpdisk仓库变更
         run: |
           cd target-repo
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
-          git add iptv
-          git commit -m "定时下载并保存iptv（$(date +%Y-%m-%d_%H:%M:%S)）" || echo "无文件变更，无需提交"
+          git add migu_video
+          git commit -m "定时下载并保存migu_video（$(date +%Y-%m-%d_%H:%M:%S)）" || echo "无文件变更，无需提交"
           git push https://${{ secrets.PANGPANG }}@github.com/dpdisk/file.git HEAD:main
