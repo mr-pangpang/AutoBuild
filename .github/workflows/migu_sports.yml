@@ -15,7 +15,7 @@ jobs:
 
       - name: 从指定链接下载migu_sports
         run: |
-          curl -f -o migu_sports "https://raw.githubusercontent.com/YanG-1989/m3u/refs/heads/main/Migu.m3u"
+          curl -f -o migu_sports "http://123.56.43.183/tv/m3u/migu_sports"
           echo "下载完成，文件大小：$(du -h migu_sports)"
 
       - name: 检查dpdisk/file仓库是否存在
