@@ -13,12 +13,17 @@ jobs:
 
       - name: 下载并提取真实直播地址
         run: |
+          # 伪装Windows环境下载Gather
           curl -L -H "User-Agent: curl/7.83.1 (Windows) libcurl/7.83.1 WinSSL" -H "Accept: */*" -o Gather "https://tv.iill.top/m3u/Gather"
-          grep -E "http://|https://|rtmp://" Gather > GatherReal.txt
+          
+          # 提取真实地址并处理空文件场景
+          grep -E "http://|https://|rtmp://" Gather > GatherReal.txt || true
+          
+          # 验证信息
           echo "=== 提取的真实地址数量 ==="
           wc -l GatherReal.txt
-          echo -e "\n=== 前3个真实地址示例 ==="
-          head -n 3 GatherReal.txt
+          echo -e "\n=== 前3个真实地址示例（若存在）==="
+          head -n 3 GatherReal.txt || echo "无有效直播地址"
 
       - name: 提交真实地址到仓库
         run: |
