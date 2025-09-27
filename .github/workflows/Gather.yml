@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  fetch-like-app:
+  download-and-save:
     runs-on: ubuntu-latest
     steps:
       - name: 拉取当前仓库代码
@@ -13,47 +13,49 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: 模拟 APP 逻辑获取直播源（无注释无换行，避免解析错误）
+      - name: 从指定链接下载 Gather
         run: |
-          # 一行式 curl 命令：保留 APP 专属头+跳转+证书忽略，无任何中文/换行
-          curl -L -f -k -H "User-Agent: APTV/3.0 (iOS/Android) / TVBox/2.5 (Android) / OKYINGSHI/1.8" -H "Accept: application/x-mpegURL, application/vnd.apple.mpegurl, text/vnd.m3u8, */*" -H "X-App-Type: IPTV-Client" -H "Referer: https://tv.iill.top/m3u/" -o Gather "https://tv.iill.top/m3u/Gather" || (echo "首次请求失败，重试1次" && curl -L -f -k -H "User-Agent: APTV/3.0 (iOS/Android) / TVBox/2.5 (Android) / OKYINGSHI/1.8" -H "Accept: application/x-mpegURL, application/vnd.apple.mpegurl, text/vnd.m3u8, */*" -H "X-App-Type: IPTV-Client" -H "Referer: https://tv.iill.top/m3u/" -o Gather "https://tv.iill.top/m3u/Gather")
+          curl -f -o Gather "https://tv.iill.top/m3u/Gather"
+          if [ $? -ne 0 ]; then
+            echo "下载失败"
+            exit 1
+          fi
+          echo "下载完成，文件大小：$(du -h Gather)"
 
-          # 验证 APP 直播源特征（纯英文日志，避免编码干扰）
-          echo "=== 1. Check if APP-recognizable (must start with #EXTM3U) ==="
-          head -n 1 Gather
-          echo -e "\n=== 2. Check playable live links (m3u8/rtmp/ts) ==="
-          grep -E "\.m3u8|rtmp://|http.*\.ts" Gather | head -n 3 || echo "No playable links yet"
-          echo -e "\n=== 3. Check channel info (APP channel list) ==="
-          grep -E "#EXTINF:.*tvname=|#EXTINF:.*频道" Gather | head -n 2 || echo "No channel info yet"
+      - name: 验证下载的文件
+        run: |
+          if [ ! -s Gather ]; then
+            echo "文件为空或不存在"
+            exit 1
+          fi
+          echo "文件验证通过"
 
-      - name: 检查 dpdisk/file 仓库是否存在
+      - name: 检查dpdisk/file仓库是否存在
         id: check_repo
         run: |
-          RESPONSE=$(curl -s -w "%{http_code}" -H "Authorization: token ${{ secrets.PANGPANG }}" "https://api.github.com/repos/dpdisk/file")
-          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
-          echo "repo_exists=$([ "$HTTP_CODE" -eq 200 ] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: token ${{ secrets.PANGPANG }}" "https://api.github.com/repos/dpdisk/file")
+          echo "repo_exists=$([ "$RESPONSE" -eq 200 ] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
 
       - name: 若仓库不存在则创建
         if: steps.check_repo.outputs.repo_exists == 'false'
         run: |
           curl -X POST -H "Authorization: token ${{ secrets.PANGPANG }}" -H "Content-Type: application/json" -d '{"name":"file","auto_init":false,"visibility":"public"}' "https://api.github.com/user/repos"
 
-      - name: 克隆 dpdisk/file 仓库
+      - name: 克隆dpdisk/file仓库
         run: |
           git clone -b main --single-branch https://${{ secrets.PANGPANG }}@github.com/dpdisk/file.git target-repo || (mkdir -p target-repo && cd target-repo && git init && git remote add origin https://${{ secrets.PANGPANG }}@github.com/dpdisk/file.git && git checkout -b main)
 
-      - name: 移动 Gather 到目标仓库
+      - name: 移动文件到目标仓库根目录
         run: |
-          mv -f Gather target-repo/
-          echo "Gather moved to target-repo/"
+          mv Gather target-repo/
+          echo "文件已移动到：target-repo/Gather"
 
-      - name: 提交并推送真实直播源
+      - name: 提交并推送dpdisk仓库变更
         run: |
           cd target-repo
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
           git add Gather
-          LIVE_COUNT=$(grep -E "\.m3u8|rtmp://|http.*\.ts" Gather | wc -l)
           CURRENT_TIME=$(date -d "+8 hours" +'%Y-%m-%d %H:%M:%S')
-          git commit -m "Update Gather (APP-Like): $CURRENT_TIME | Playable Links: $LIVE_COUNT" || echo "No update, skip commit"
+          git commit -m "updatetime $CURRENT_TIME" || echo "无文件变更，无需提交"
           git push https://${{ secrets.PANGPANG }}@github.com/dpdisk/file.git HEAD:main
