@@ -1,11 +1,11 @@
-name: Gather-Live
+name: Gather
 on:
   schedule:
-    - cron: "0 */2 * * *"  # 保持每2小时更新
-  workflow_dispatch:  # 保留手动触发，方便测试
+    - cron: "0 */2 * * *"
+  workflow_dispatch:
 
 jobs:
-  fetch-aptv-live-source:
+  download-and-save-Gather:
     runs-on: ubuntu-latest
     steps:
       - name: 拉取仓库代码
@@ -13,30 +13,18 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: 模拟 iOS APTV 下载直播源（核心步骤）
+      - name: 模拟 iOS APTV 下载直播源
         run: |
-          # 1. 完全复制 APTV 在 iOS 上的请求头（APTV 官方默认请求头，实测能匹配直播源权限）
-          curl -H "User-Agent: APTV/2.8.1 (iPhone; iOS 17.5; Scale/3.00)" \
-               -H "Accept: application/x-mpegURL, application/vnd.apple.mpegurl, text/plain, */*" \
-               -H "Accept-Language: zh-CN,zh;q=0.9" \
-               -H "Connection: keep-alive" \
-               -H "Referer: https://tv.iill.top/m3u/" \  # 模拟从 APTV 内访问 m3u 目录页跳转
-               --retry 5 \  # 增加重试次数（应对 APTV 服务器偶尔的延迟）
-               --retry-delay 8 \  # 每次重试间隔8秒（匹配移动端网络波动适配）
-               --connect-timeout 15 \  # 延长超时（适配直播源服务器响应速度）
-               -o Gather "https://tv.iill.top/m3u/Gather"  # 文件名保持 Gather（无 M3U）
+          curl -H "User-Agent: APTV/2.8.1 (iPhone; iOS 17.5; Scale/3.00)" -H "Accept: application/x-mpegURL, application/vnd.apple.mpegurl, text/plain, */*" -H "Accept-Language: zh-CN,zh;q=0.9" -H "Connection: keep-alive" -H "Referer: https://tv.iill.top/m3u/" --retry 5 --retry-delay 8 --connect-timeout 15 -o Gather "https://tv.iill.top/m3u/Gather"
           
-          # 2. 关键验证：打印直播源特征（确认是否为正确的 APTV 可用直播源）
           echo "=== 下载文件大小 ==="
           du -h Gather
-          echo -e "\n=== 验证是否为 APTV 可用直播源（打印前15行，含核心标识）==="
-          # 打印前15行，重点看是否有 APTV 识别的直播源标记（#EXTM3U 开头+频道信息）
+          echo -e "\n=== 前15行内容（检查是否为直播源）==="
           head -n 15 Gather
-          echo -e "\n=== 检查是否包含直播链接（搜索 http/https 直播地址）==="
-          # 搜索文件中的直播链接（APTV 能播的源一定有 http/https 开头的播放地址）
+          echo -e "\n=== 前5个直播链接 ==="
           grep -E "http://|https://" Gather | head -n 5
 
-      - name: 检查目标仓库（dpdisk/file）
+      - name: 检查目标仓库
         id: check-repo
         run: |
           RESPONSE=$(curl -s -w "%{http_code}" -H "Authorization: token ${{ secrets.PANGPANG }}" "https://api.github.com/repos/dpdisk/file")
@@ -45,24 +33,23 @@ jobs:
       - name: 创建仓库（若不存在）
         if: steps.check-repo.outputs.repo_exists == 'false'
         run: |
-          curl -X POST -H "Authorization: token ${{ secrets.PANGPANG }}" -H "Content-Type: application/json" -d '{"name":"file","auto_init":false,"visibility":"public"}' "https://api.github.com/user/repos"
+          curl -X POST -H "Authorization: token ${{ secrets.PANGPANG }}" -H "Content-Type: application/json" -d '{"name":"file","auto_init":false,"visibility":"public"}' "https://api.github.com/repos/dpdisk/file"
 
       - name: 克隆/初始化目标仓库
         run: |
           git clone -b main --single-branch https://${{ secrets.PANGPANG }}@github.com/dpdisk/file.git target-repo || (mkdir -p target-repo && cd target-repo && git init && git remote add origin https://${{ secrets.PANGPANG }}@github.com/dpdisk/file.git && git checkout -b main)
 
-      - name: 移动直播源到目标仓库
+      - name: 移动 Gather 到目标仓库
         run: |
-          mv -f Gather target-repo/  # -f 强制覆盖旧文件（确保是最新直播源）
-          echo "直播源已移动到：target-repo/Gather"
+          mv -f Gather target-repo/
+          echo "Gather 已移动到：target-repo/Gather"
 
-      - name: 提交并推送最新直播源
+      - name: 提交并推送 Gather
         run: |
           cd target-repo
-          git config --global user.name "APTV-Live-Fetcher"
-          git config --global user.email "aptv-fetcher@github.actions"
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
           git add Gather
-          # 提交信息含“是否有效”标记（根据前面的验证结果）
           LIVE_COUNT=$(grep -E "http://|https://" Gather | wc -l)
-          git commit -m "APTV Live Source Update: $(date +'%Y-%m-%d %H:%M:%S +0800') | Live Links: $LIVE_COUNT" || echo "直播源无更新，无需提交"
+          git commit -m "Update Gather: $(date +'%Y-%m-%d %H:%M:%S +0800') | 直播链接数: $LIVE_COUNT" || echo "Gather 无更新，跳过提交"
           git push https://${{ secrets.PANGPANG }}@github.com/dpdisk/file.git HEAD:main
