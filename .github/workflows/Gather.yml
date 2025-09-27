@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  download-and-save-Gather:
+  fetch-like-app:
     runs-on: ubuntu-latest
     steps:
       - name: 拉取当前仓库代码
@@ -13,15 +13,32 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: 从指定链接下载 Gather 文件
+      - name: 模拟 APTV/TVBox/OK影视 核心逻辑获取直播源
         run: |
-          # 仅保留初始下载逻辑+伪装Windows头（确保拿到真实内容，无其他添加）
-          curl -L -H "User-Agent: curl/7.83.1 (Windows) libcurl/7.83.1 WinSSL" -H "Accept: */*" -o Gather "https://tv.iill.top/m3u/Gather"
-          echo "Gather 文件下载完成，文件大小：$(du -h Gather)"
-          
-          # 提取真实直播地址（文件名用GatherReal，无额外字符，加容错避免报错）
-          grep -E "http://|https://|rtmp://" Gather > GatherReal || true
-          echo -e "\n提取的真实地址数量：$(wc -l GatherReal)"
+          # 1. 用 APP 专属 User-Agent（APTV/TVBox 通用标识，服务器认这个“APP身份”）
+          # 2. 加 APP 常用 Accept 格式（接收 m3u8 等直播专用格式，不是通用文本）
+          # 3. 用 -L -f 强制跟随所有跳转（APP会自动跳3-5层，这里完全复刻）
+          # 4. 加 -k 忽略证书小问题（部分直播源服务器证书不完整，APP会自动忽略）
+          curl -L -f -k \
+               -H "User-Agent: APTV/3.0 (iOS/Android) / TVBox/2.5 (Android) / OKYINGSHI/1.8" \
+               -H "Accept: application/x-mpegURL, application/vnd.apple.mpegurl, text/vnd.m3u8, */*" \
+               -H "X-App-Type: IPTV-Client" \  # APP 通用自定义头（标记“我是正规直播APP”）
+               -H "Referer: https://tv.iill.top/m3u/" \  # 模拟从 APP 内点击进入源地址
+               -o Gather "https://tv.iill.top/m3u/Gather" \
+               || echo "首次请求失败，重试1次（APP会自动重试，这里复刻）" && curl -L -f -k \
+               -H "User-Agent: APTV/3.0 (iOS/Android) / TVBox/2.5 (Android) / OKYINGSHI/1.8" \
+               -H "Accept: application/x-mpegURL, application/vnd.apple.mpegurl, text/vnd.m3u8, */*" \
+               -H "X-App-Type: IPTV-Client" \
+               -H "Referer: https://tv.iill.top/m3u/" \
+               -o Gather "https://tv.iill.top/m3u/Gather"
+
+          # 验证：打印 APP 能识别的直播源特征（和你在 APTV/TVBox 里看到的一致）
+          echo "=== 1. 检查是否为 APP 可识别的直播源（必须有 #EXTM3U 开头）==="
+          head -n 1 Gather  # APP 只认 #EXTM3U 开头的文件
+          echo -e "\n=== 2. 检查是否有 APP 可播放的真实直播地址（m3u8/rtmp 格式）==="
+          grep -E "\.m3u8|rtmp://|http.*\.ts" Gather | head -n 3  # 这些是 APP 实际播放的格式
+          echo -e "\n=== 3. 检查是否有频道信息（APP 列表里显示的频道名）==="
+          grep -E "#EXTINF:.*tvname=|#EXTINF:.*频道" Gather | head -n 2  # APP 频道列表的来源
 
       - name: 检查 dpdisk/file 仓库是否存在
         id: check_repo
@@ -41,16 +58,17 @@ jobs:
 
       - name: 移动 Gather 到目标仓库
         run: |
-          mv Gather target-repo/
-          mv GatherReal target-repo/  # 移动真实地址文件（名称简洁，无多余后缀）
-          echo "Gather 已移动到目标仓库"
+          mv -f Gather target-repo/
+          echo "Gather 已移动到目标仓库（和 APP 获取的内容一致）"
 
-      - name: 提交并推送变更
+      - name: 提交并推送真实直播源
         run: |
           cd target-repo
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
-          git add Gather GatherReal
+          git add Gather
+          # 统计 APP 可播放的真实地址数量（方便你确认是否有效）
+          LIVE_COUNT=$(grep -E "\.m3u8|rtmp://|http.*\.ts" Gather | wc -l)
           CURRENT_TIME=$(date -d "+8 hours" +'%Y-%m-%d %H:%M:%S')
-          git commit -m "Update Gather: $CURRENT_TIME" || echo "文件无变更，无需提交"
+          git commit -m "Update Gather (APP-Like): $CURRENT_TIME | Playable Links: $LIVE_COUNT" || echo "文件无变更，无需提交"
           git push https://${{ secrets.PANGPANG }}@github.com/dpdisk/file.git HEAD:main
