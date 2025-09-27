@@ -13,10 +13,20 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: 从指定链接下载 Gather 文件
+      - name: 下载 Gather 文件（模拟TVBOX/浏览器完整访问）
         run: |
-          curl -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36" --retry 3 --retry-delay 5 -o Gather "https://tv.iill.top/m3u/Gather"
-          echo "Gather 文件下载完成，文件大小：$(du -h Gather)"
+          # 1. 模拟浏览器+TVBOX常见请求头（关键：带Accept和Referer，匹配真实访问）
+          curl -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36" \
+               -H "Accept: text/plain, application/x-mpegURL, */*" \
+               -H "Referer: https://tv.iill.top/" \
+               --retry 3 \
+               --retry-delay 5 \
+               --connect-timeout 10 \
+               -o Gather "https://tv.iill.top/m3u/Gather"  # 文件名直接为Gather（已去掉M3U）
+          # 2. 验证下载内容（打印前10行，确认是否为正确M3U列表）
+          echo "下载内容预览（前10行）："
+          head -n 10 Gather
+          echo "Gather 文件大小：$(du -h Gather)"
 
       - name: 检查 dpdisk/file 仓库是否存在
         id: check_repo
@@ -34,17 +44,17 @@ jobs:
         run: |
           git clone -b main --single-branch https://${{ secrets.PANGPANG }}@github.com/dpdisk/file.git target-repo || (mkdir -p target-repo && cd target-repo && git init && git remote add origin https://${{ secrets.PANGPANG }}@github.com/dpdisk/file.git && git checkout -b main)
 
-      - name: 移动 Gather 文件到目标仓库根目录
+      - name: 移动 Gather 文件到目标仓库
         run: |
           mv Gather target-repo/
-          echo "Gather 文件已移动到目标仓库：target-repo/Gather"
+          echo "文件已移动到：target-repo/Gather"
 
-      - name: 提交并推送 Gather 文件变更到 dpdisk 仓库
+      - name: 提交并推送 Gather 文件
         run: |
           cd target-repo
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
           git add Gather
           CURRENT_TIME=$(date -d "+8 hours" +'%Y-%m-%d %H:%M:%S')
-          git commit -m "Update Gather: $CURRENT_TIME" || echo "Gather 文件无变更，无需提交"
+          git commit -m "Update Gather: $CURRENT_TIME" || echo "Gather 无内容变更，无需提交"
           git push https://${{ secrets.PANGPANG }}@github.com/dpdisk/file.git HEAD:main
