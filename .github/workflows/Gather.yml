@@ -5,30 +5,52 @@ on:
   workflow_dispatch:
 
 jobs:
-  extract-real-urls:
+  download-and-save-Gather:
     runs-on: ubuntu-latest
     steps:
-      - name: 拉取仓库代码
+      - name: 拉取当前仓库代码
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
-      - name: 下载并提取真实直播地址
+      - name: 从指定链接下载 Gather 文件
         run: |
-          # 伪装Windows环境下载Gather
+          # 仅保留初始下载逻辑+伪装Windows头（确保拿到真实内容，无其他添加）
           curl -L -H "User-Agent: curl/7.83.1 (Windows) libcurl/7.83.1 WinSSL" -H "Accept: */*" -o Gather "https://tv.iill.top/m3u/Gather"
+          echo "Gather 文件下载完成，文件大小：$(du -h Gather)"
           
-          # 提取真实地址并处理空文件场景
-          grep -E "http://|https://|rtmp://" Gather > GatherReal.txt || true
-          
-          # 验证信息
-          echo "=== 提取的真实地址数量 ==="
-          wc -l GatherReal.txt
-          echo -e "\n=== 前3个真实地址示例（若存在）==="
-          head -n 3 GatherReal.txt || echo "无有效直播地址"
+          # 提取真实直播地址（文件名用GatherReal，无额外字符，加容错避免报错）
+          grep -E "http://|https://|rtmp://" Gather > GatherReal || true
+          echo -e "\n提取的真实地址数量：$(wc -l GatherReal)"
 
-      - name: 提交真实地址到仓库
+      - name: 检查 dpdisk/file 仓库是否存在
+        id: check_repo
         run: |
+          RESPONSE=$(curl -s -w "%{http_code}" -H "Authorization: token ${{ secrets.PANGPANG }}" "https://api.github.com/repos/dpdisk/file")
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          echo "repo_exists=$([ "$HTTP_CODE" -eq 200 ] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
+
+      - name: 若仓库不存在则创建
+        if: steps.check_repo.outputs.repo_exists == 'false'
+        run: |
+          curl -X POST -H "Authorization: token ${{ secrets.PANGPANG }}" -H "Content-Type: application/json" -d '{"name":"file","auto_init":false,"visibility":"public"}' "https://api.github.com/user/repos"
+
+      - name: 克隆 dpdisk/file 仓库
+        run: |
+          git clone -b main --single-branch https://${{ secrets.PANGPANG }}@github.com/dpdisk/file.git target-repo || (mkdir -p target-repo && cd target-repo && git init && git remote add origin https://${{ secrets.PANGPANG }}@github.com/dpdisk/file.git && git checkout -b main)
+
+      - name: 移动 Gather 到目标仓库
+        run: |
+          mv Gather target-repo/
+          mv GatherReal target-repo/  # 移动真实地址文件（名称简洁，无多余后缀）
+          echo "Gather 已移动到目标仓库"
+
+      - name: 提交并推送变更
+        run: |
+          cd target-repo
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
-          git add GatherReal.txt
-          git commit -m "Update Gather Real URLs: $(date +'%Y-%m-%d %H:%M:%S')" || echo "无新地址，跳过提交"
-          git push
+          git add Gather GatherReal
+          CURRENT_TIME=$(date -d "+8 hours" +'%Y-%m-%d %H:%M:%S')
+          git commit -m "Update Gather: $CURRENT_TIME" || echo "文件无变更，无需提交"
+          git push https://${{ secrets.PANGPANG }}@github.com/dpdisk/file.git HEAD:main
