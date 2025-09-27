@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  fetch-real-live-source:
+  fetch-like-bat:
     runs-on: ubuntu-latest
     steps:
       - name: 拉取仓库代码
@@ -13,28 +13,19 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: 模拟TVBOX/APTV/OK影视获取直播源（带跳转+通用头）
+      - name: 用电脑BAT同款curl命令下载（核心步骤）
         run: |
-          # 关键1：-L 跟随所有跳转（直播源常用跳转链接，APP会自动跳，curl默认不跳）
-          # 关键2：添加3类APP通用请求头（设备+APP标识+防盗链，覆盖TVBOX/APTV/OK影视共性）
-          curl -L \
-               -H "User-Agent: Dalvik/2.1.0 (Linux; U; Android 11; TVBOX Build/RK3399)" \  # TVBOX安卓设备头
-               -H "X-APP: TVBOX/APTV/OKYINGSHI" \  # 模拟APP标识（部分服务器认这个）
-               -H "Referer: https://tv.iill.top/" \  # 防盗链基础Referer
-               -H "Accept: */*" \  # 接收所有内容格式（APP不挑格式，避免服务器返回错误类型）
-               --retry 3 \
-               --connect-timeout 10 \
-               -o Gather "https://tv.iill.top/m3u/Gather"  # 保持你的文件名Gather
+          # 以下命令和你电脑BAT里的curl命令完全一致（仅保留最基础参数，和本地行为对齐）
+          curl -L -o Gather "https://tv.iill.top/m3u/Gather"
+          
+          # 验证下载结果（和你电脑BAT下载后看的内容一致）
+          echo "=== 本地BAT同款下载结果 ==="
+          echo "文件大小：$(du -h Gather)"
+          echo -e "\n文件前15行内容（和你电脑打开Gather看到的一致）："
+          head -n 15 Gather
+          echo -e "\n是否包含直播链接（和你电脑BAT下载的源一致）："
+          grep -E "http://|https://" Gather | head -n 3
 
-          # 验证：打印核心特征（确认是否为真实直播源，和APP里的一致）
-          echo "=== 文件大小（非空则有内容）==="
-          du -h Gather
-          echo -e "\n=== 前20行内容（看是否有 #EXTM3U 开头+频道信息，APP能播的源必带）==="
-          head -n 20 Gather
-          echo -e "\n=== 搜索真实直播地址（APP能播的是 http/https/rtmp 开头，非跳转链接）==="
-          grep -E "http://|https://|rtmp://" Gather | head -n 5
-
-      # 以下步骤（仓库检查/克隆/移动/提交）完全保留，和你之前一致，不改动
       - name: 检查目标仓库
         id: check-repo
         run: |
@@ -53,7 +44,7 @@ jobs:
       - name: 移动Gather到目标仓库
         run: |
           mv -f Gather target-repo/
-          echo "Gather已移动到目标仓库"
+          echo "Gather已移动到目标仓库（和本地BAT下载后移动文件逻辑一致）"
 
       - name: 提交并推送
         run: |
@@ -61,6 +52,6 @@ jobs:
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
           git add Gather
-          LIVE_COUNT=$(grep -E "http://|https://|rtmp://" Gather | wc -l)
-          git commit -m "Update Gather: $(date +'%Y-%m-%d %H:%M:%S +0800') | 有效直播链接数: $LIVE_COUNT" || echo "Gather无更新，跳过提交"
+          LIVE_COUNT=$(grep -E "http://|https://" Gather | wc -l)
+          git commit -m "Update Gather (BAT同款curl): $(date +'%Y-%m-%d %H:%M:%S +0800') | 直播链接数: $LIVE_COUNT" || echo "无更新，跳过提交"
           git push https://${{ secrets.PANGPANG }}@github.com/dpdisk/file.git HEAD:main
