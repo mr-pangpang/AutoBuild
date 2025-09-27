@@ -1,34 +1,173 @@
-name: Get Live Stream
+name: Gather
 on:
-  issues:
-    types: [opened, edited]  # 当 Issue 被创建或编辑时触发
+  schedule:
+    - cron: "0 */2 * * *"
+  workflow_dispatch:
+
 jobs:
-  extract:
+  download-and-save:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - name: 拉取当前仓库代码
+        uses: actions/checkout@v4
         with:
-          python-version: '3.9'
-      - name: Install dependencies
+          persist-credentials: false
+
+      - name: 从指定链接下载 Gather（带重试机制）
         run: |
-          python -m pip install --upgrade pip
-          pip install requests beautifulsoup4
-      - name: Run script
-        id: get_stream
-        run: |
-          url=<LaTex>$(echo "$</LaTex>{{ github.event.issue.body }}" | grep -oE 'https?://[^\s]+' | head -1)
-          if [ -z "<LaTex>$url" ]; then[ty-n]            echo "NO\_URL\_FOUND=true" >> $</LaTex>GITHUB_ENV
-            exit 0
+          echo "开始下载 Gather 文件..."
+          
+          # 方法1：使用 curl 带浏览器头部信息
+          echo "尝试方法1: curl..."
+          curl -f -L --retry 3 --retry-delay 5 -o Gather \
+            -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" \
+            -H "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8" \
+            -H "Accept-Language: zh-CN,zh;q=0.9,en;q=0.8" \
+            -H "Referer: https://tv.iill.top/" \
+            "https://tv.iill.top/m3u/Gather"
+          
+          if [ $? -eq 0 ] && [ -s Gather ]; then
+            echo "✅ 方法1下载成功"
+            DOWNLOAD_SUCCESS=true
+          else
+            echo "❌ 方法1下载失败，尝试方法2..."
+            DOWNLOAD_SUCCESS=false
+            
+            # 方法2：使用 wget
+            wget -O Gather \
+              --user-agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" \
+              --header="Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8" \
+              "https://tv.iill.top/m3u/Gather"
+            
+            if [ $? -eq 0 ] && [ -s Gather ]; then
+              echo "✅ 方法2下载成功"
+              DOWNLOAD_SUCCESS=true
+            else
+              echo "❌ 方法2下载失败，尝试方法3..."
+              
+              # 方法3：使用 Python
+              python3 -c "
+              import urllib.request
+              import urllib.error
+              try:
+                  opener = urllib.request.build_opener()
+                  opener.addheaders = [
+                      ('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'),
+                      ('Accept', 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8'),
+                      ('Referer', 'https://tv.iill.top/')
+                  ]
+                  urllib.request.install_opener(opener)
+                  urllib.request.urlretrieve('https://tv.iill.top/m3u/Gather', 'Gather')
+                  print('Python下载成功')
+              except Exception as e:
+                  print(f'Python下载失败: {e}')
+                  exit(1)
+              "
+              
+              if [ $? -eq 0 ] && [ -s Gather ]; then
+                echo "✅ 方法3下载成功"
+                DOWNLOAD_SUCCESS=true
+              else
+                echo "❌ 所有下载方法都失败"
+                DOWNLOAD_SUCCESS=false
+              fi
+            fi
           fi
-          result=<LaTex>$(python scripts/get\_live\_stream.py "$</LaTex>url")
-          echo "STREAM_URL=<LaTex>$result" >> $</LaTex>GITHUB_ENV
-      - name: Reply to Issue
-        if: env.STREAM_URL != ''
-        uses: actions-cool/issues-reply@v1
-        with:
-          body: |
-            🎯 **直播源地址**  
-            <LaTex>${{ env.STREAM\_URL }}[ty-n]          issue-number: $</LaTex>{{ github.event.issue.number }}
+          
+          if [ "$DOWNLOAD_SUCCESS" = true ]; then
+            echo "📊 下载完成，文件信息："
+            echo "文件大小: $(du -h Gather | cut -f1)"
+            echo "文件类型: $(file -b Gather)"
+            echo "前100个字符预览:"
+            head -c 100 Gather | cat -A
+            echo ""
+          else
+            echo "💥 下载失败，请检查链接是否有效或需要特殊认证"
+            exit 1
+          fi
+
+      - name: 验证下载的文件
+        run: |
+          if [ ! -f Gather ]; then
+            echo "❌ 文件不存在"
+            exit 1
+          fi
+          
+          if [ ! -s Gather ]; then
+            echo "❌ 文件为空"
+            exit 1
+          fi
+          
+          FILESIZE=$(stat -c%s Gather)
+          if [ "$FILESIZE" -lt 100 ]; then
+            echo "⚠️ 文件大小异常小，可能是错误页面"
+            cat Gather
+            exit 1
+          fi
+          
+          echo "✅ 文件验证通过"
+          echo "文件大小: $FILESIZE 字节"
+
+      - name: 检查dpdisk/file仓库是否存在
+        id: check_repo
+        run: |
+          echo "检查目标仓库是否存在..."
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: token ${{ secrets.PANGPANG }}" "https://api.github.com/repos/dpdisk/file")
+          echo "HTTP状态码: $RESPONSE"
+          echo "repo_exists=$([ "$RESPONSE" -eq 200 ] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
+
+      - name: 若仓库不存在则创建
+        if: steps.check_repo.outputs.repo_exists == 'false'
+        run: |
+          echo "创建新仓库..."
+          curl -X POST \
+            -H "Authorization: token ${{ secrets.PANGPANG }}" \
+            -H "Content-Type: application/json" \
+            -d '{"name":"file","auto_init":true,"visibility":"public"}' \
+            "https://api.github.com/user/repos"
+          echo "仓库创建完成"
+
+      - name: 克隆dpdisk/file仓库
+        run: |
+          echo "克隆目标仓库..."
+          git clone -b main --single-branch https://${{ secrets.PANGPANG }}@github.com/dpdisk/file.git target-repo || \
+          (mkdir -p target-repo && cd target-repo && git init && git remote add origin https://${{ secrets.PANGPANG }}@github.com/dpdisk/file.git && git checkout -b main)
+          echo "克隆完成"
+
+      - name: 移动文件到目标仓库根目录
+        run: |
+          echo "移动文件到目标仓库..."
+          mv Gather target-repo/
+          ls -la target-repo/
+          echo "✅ 文件已移动到：target-repo/Gather"
+
+      - name: 提交并推送dpdisk仓库变更
+        run: |
+          echo "提交变更..."
+          cd target-repo
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          git add Gather
+          
+          # 检查是否有变更
+          if git diff-index --quiet HEAD --; then
+            echo "🔄 无文件变更，无需提交"
+          else
+            CURRENT_TIME=$(date -d "+8 hours" +'%Y-%m-%d %H:%M:%S')
+            git commit -m "自动更新: $CURRENT_TIME"
+            echo "✅ 提交完成: $CURRENT_TIME"
+          fi
+
+      - name: 推送到远程仓库
+        run: |
+          cd target-repo
+          echo "推送变更到远程仓库..."
+          git push https://${{ secrets.PANGPANG }}@github.com/dpdisk/file.git HEAD:main
+          echo "✅ 推送完成"
+
+      - name: 清理工作区
+        if: always()
+        run: |
+          echo "清理工作区..."
+          rm -rf target-repo/ || true
+          echo "清理完成"
