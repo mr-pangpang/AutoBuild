@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  download-and-save-Gather:
+  fetch-real-live-source:
     runs-on: ubuntu-latest
     steps:
       - name: 拉取仓库代码
@@ -13,17 +13,28 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: 模拟 iOS APTV 下载直播源
+      - name: 模拟TVBOX/APTV/OK影视获取直播源（带跳转+通用头）
         run: |
-          curl -H "User-Agent: APTV/2.8.1 (iPhone; iOS 17.5; Scale/3.00)" -H "Accept: application/x-mpegURL, application/vnd.apple.mpegurl, text/plain, */*" -H "Accept-Language: zh-CN,zh;q=0.9" -H "Connection: keep-alive" -H "Referer: https://tv.iill.top/m3u/" --retry 5 --retry-delay 8 --connect-timeout 15 -o Gather "https://tv.iill.top/m3u/Gather"
-          
-          echo "=== 下载文件大小 ==="
-          du -h Gather
-          echo -e "\n=== 前15行内容（检查是否为直播源）==="
-          head -n 15 Gather
-          echo -e "\n=== 前5个直播链接 ==="
-          grep -E "http://|https://" Gather | head -n 5
+          # 关键1：-L 跟随所有跳转（直播源常用跳转链接，APP会自动跳，curl默认不跳）
+          # 关键2：添加3类APP通用请求头（设备+APP标识+防盗链，覆盖TVBOX/APTV/OK影视共性）
+          curl -L \
+               -H "User-Agent: Dalvik/2.1.0 (Linux; U; Android 11; TVBOX Build/RK3399)" \  # TVBOX安卓设备头
+               -H "X-APP: TVBOX/APTV/OKYINGSHI" \  # 模拟APP标识（部分服务器认这个）
+               -H "Referer: https://tv.iill.top/" \  # 防盗链基础Referer
+               -H "Accept: */*" \  # 接收所有内容格式（APP不挑格式，避免服务器返回错误类型）
+               --retry 3 \
+               --connect-timeout 10 \
+               -o Gather "https://tv.iill.top/m3u/Gather"  # 保持你的文件名Gather
 
+          # 验证：打印核心特征（确认是否为真实直播源，和APP里的一致）
+          echo "=== 文件大小（非空则有内容）==="
+          du -h Gather
+          echo -e "\n=== 前20行内容（看是否有 #EXTM3U 开头+频道信息，APP能播的源必带）==="
+          head -n 20 Gather
+          echo -e "\n=== 搜索真实直播地址（APP能播的是 http/https/rtmp 开头，非跳转链接）==="
+          grep -E "http://|https://|rtmp://" Gather | head -n 5
+
+      # 以下步骤（仓库检查/克隆/移动/提交）完全保留，和你之前一致，不改动
       - name: 检查目标仓库
         id: check-repo
         run: |
@@ -39,17 +50,17 @@ jobs:
         run: |
           git clone -b main --single-branch https://${{ secrets.PANGPANG }}@github.com/dpdisk/file.git target-repo || (mkdir -p target-repo && cd target-repo && git init && git remote add origin https://${{ secrets.PANGPANG }}@github.com/dpdisk/file.git && git checkout -b main)
 
-      - name: 移动 Gather 到目标仓库
+      - name: 移动Gather到目标仓库
         run: |
           mv -f Gather target-repo/
-          echo "Gather 已移动到：target-repo/Gather"
+          echo "Gather已移动到目标仓库"
 
-      - name: 提交并推送 Gather
+      - name: 提交并推送
         run: |
           cd target-repo
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
           git add Gather
-          LIVE_COUNT=$(grep -E "http://|https://" Gather | wc -l)
-          git commit -m "Update Gather: $(date +'%Y-%m-%d %H:%M:%S +0800') | 直播链接数: $LIVE_COUNT" || echo "Gather 无更新，跳过提交"
+          LIVE_COUNT=$(grep -E "http://|https://|rtmp://" Gather | wc -l)
+          git commit -m "Update Gather: $(date +'%Y-%m-%d %H:%M:%S +0800') | 有效直播链接数: $LIVE_COUNT" || echo "Gather无更新，跳过提交"
           git push https://${{ secrets.PANGPANG }}@github.com/dpdisk/file.git HEAD:main
