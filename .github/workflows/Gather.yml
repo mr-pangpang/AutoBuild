@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  fetch-like-bat:
+  fake-windows-fetch:
     runs-on: ubuntu-latest
     steps:
       - name: 拉取仓库代码
@@ -13,18 +13,21 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: 用电脑BAT同款curl命令下载（核心步骤）
+      - name: 伪装成你本地Windows电脑下载（服务器认的环境）
         run: |
-          # 以下命令和你电脑BAT里的curl命令完全一致（仅保留最基础参数，和本地行为对齐）
-          curl -L -o Gather "https://tv.iill.top/m3u/Gather"
-          
-          # 验证下载结果（和你电脑BAT下载后看的内容一致）
-          echo "=== 本地BAT同款下载结果 ==="
-          echo "文件大小：$(du -h Gather)"
-          echo -e "\n文件前15行内容（和你电脑打开Gather看到的一致）："
-          head -n 15 Gather
-          echo -e "\n是否包含直播链接（和你电脑BAT下载的源一致）："
-          grep -E "http://|https://" Gather | head -n 3
+          # 核心：1. 用Windows版curl的User-Agent（骗服务器“这是本地Windows的curl”）
+          #      2. 加Windows环境的默认Accept头（和你电脑浏览器/ curl 发送的一致）
+          #      3. 保留-L跟随跳转（和你BAT一致），无其他多余参数
+          curl -L \
+               -H "User-Agent: curl/7.83.1 (Windows) libcurl/7.83.1 WinSSL" \  # 你本地Windows curl的默认标识（服务器认这个）
+               -H "Accept: */*" \  # 本地Windows curl默认发送的内容接收头
+               -o Gather "https://tv.iill.top/m3u/Gather"
+
+          # 强制打印完整文件内容（方便你对比：和你电脑BAT下载的Gather逐行对照）
+          echo "=== 1. 下载文件完整内容（和你电脑BAT下载的对比，看是否一致）==="
+          cat Gather
+          echo -e "\n=== 2. 统计直播链接数（你电脑BAT下载的有多少，这里就该有多少）==="
+          grep -c -E "http://|https://|rtmp://" Gather  # 统计有效直播链接数量
 
       - name: 检查目标仓库
         id: check-repo
@@ -44,7 +47,7 @@ jobs:
       - name: 移动Gather到目标仓库
         run: |
           mv -f Gather target-repo/
-          echo "Gather已移动到目标仓库（和本地BAT下载后移动文件逻辑一致）"
+          echo "Gather已移动到目标仓库"
 
       - name: 提交并推送
         run: |
@@ -52,6 +55,6 @@ jobs:
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
           git add Gather
-          LIVE_COUNT=$(grep -E "http://|https://" Gather | wc -l)
-          git commit -m "Update Gather (BAT同款curl): $(date +'%Y-%m-%d %H:%M:%S +0800') | 直播链接数: $LIVE_COUNT" || echo "无更新，跳过提交"
+          LIVE_COUNT=$(grep -c -E "http://|https://|rtmp://" Gather)
+          git commit -m "Update Gather (Fake Windows): $(date +'%Y-%m-%d %H:%M:%S +0800') | 直播链接数: $LIVE_COUNT" || echo "无更新，跳过提交"
           git push https://${{ secrets.PANGPANG }}@github.com/dpdisk/file.git HEAD:main
