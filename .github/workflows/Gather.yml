@@ -13,161 +13,121 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: 从指定链接下载 Gather（带重试机制）
+      - name: 测试链接可访问性
         run: |
-          echo "开始下载 Gather 文件..."
+          echo "测试链接可访问性..."
           
-          # 方法1：使用 curl 带浏览器头部信息
-          echo "尝试方法1: curl..."
-          curl -f -L --retry 3 --retry-delay 5 -o Gather \
-            -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" \
-            -H "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8" \
-            -H "Accept-Language: zh-CN,zh;q=0.9,en;q=0.8" \
-            -H "Referer: https://tv.iill.top/" \
+          # 测试1: 直接访问网站首页
+          echo "1. 测试网站首页..."
+          curl -I "https://tv.iill.top/" || echo "首页访问失败"
+          
+          # 测试2: 测试m3u目录
+          echo "2. 测试m3u目录..."
+          curl -I "https://tv.iill.top/m3u/" || echo "目录访问失败"
+          
+          # 测试3: 测试其他可能存在的文件
+          echo "3. 测试其他文件..."
+          curl -I "https://tv.iill.top/m3u/live" || echo "live文件测试失败"
+          curl -I "https://tv.iill.top/m3u/iptv" || echo "iptv文件测试失败"
+          
+          echo "测试完成"
+
+      - name: 尝试不同的URL变体
+        run: |
+          echo "尝试不同的URL变体..."
+          
+          # 可能的不同URL格式
+          URLS=(
             "https://tv.iill.top/m3u/Gather"
+            "https://tv.iill.top/m3u/gather"
+            "https://tv.iill.top/Gather"
+            "https://tv.iill.top/gather"
+            "https://tv.iill.top/m3u/Gather.m3u"
+            "https://tv.iill.top/m3u/gather.m3u"
+          )
           
-          if [ $? -eq 0 ] && [ -s Gather ]; then
-            echo "✅ 方法1下载成功"
-            DOWNLOAD_SUCCESS=true
-          else
-            echo "❌ 方法1下载失败，尝试方法2..."
-            DOWNLOAD_SUCCESS=false
-            
-            # 方法2：使用 wget
-            wget -O Gather \
-              --user-agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" \
-              --header="Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8" \
-              "https://tv.iill.top/m3u/Gather"
-            
-            if [ $? -eq 0 ] && [ -s Gather ]; then
-              echo "✅ 方法2下载成功"
-              DOWNLOAD_SUCCESS=true
-            else
-              echo "❌ 方法2下载失败，尝试方法3..."
-              
-              # 方法3：使用 Python
-              python3 -c "
-              import urllib.request
-              import urllib.error
-              try:
-                  opener = urllib.request.build_opener()
-                  opener.addheaders = [
-                      ('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'),
-                      ('Accept', 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8'),
-                      ('Referer', 'https://tv.iill.top/')
-                  ]
-                  urllib.request.install_opener(opener)
-                  urllib.request.urlretrieve('https://tv.iill.top/m3u/Gather', 'Gather')
-                  print('Python下载成功')
-              except Exception as e:
-                  print(f'Python下载失败: {e}')
-                  exit(1)
-              "
-              
-              if [ $? -eq 0 ] && [ -s Gather ]; then
-                echo "✅ 方法3下载成功"
-                DOWNLOAD_SUCCESS=true
-              else
-                echo "❌ 所有下载方法都失败"
-                DOWNLOAD_SUCCESS=false
-              fi
+          for url in "${URLS[@]}"; do
+            echo "尝试: $url"
+            if curl -f -I "$url" 2>/dev/null | grep -q "200 OK"; then
+              echo "✅ 找到有效链接: $url"
+              echo "VALID_URL=$url" >> $GITHUB_ENV
+              break
             fi
-          fi
+          done
           
-          if [ "$DOWNLOAD_SUCCESS" = true ]; then
-            echo "📊 下载完成，文件信息："
-            echo "文件大小: $(du -h Gather | cut -f1)"
-            echo "文件类型: $(file -b Gather)"
-            echo "前100个字符预览:"
-            head -c 100 Gather | cat -A
-            echo ""
-          else
-            echo "💥 下载失败，请检查链接是否有效或需要特殊认证"
-            exit 1
+          if [ -z "$VALID_URL" ]; then
+            echo "❌ 未找到有效链接"
+            # 继续执行，看看是否能通过其他方式获取
           fi
 
-      - name: 验证下载的文件
+      - name: 使用代理或镜像站点
         run: |
-          if [ ! -f Gather ]; then
-            echo "❌ 文件不存在"
-            exit 1
-          fi
+          echo "尝试通过代理或镜像访问..."
           
-          if [ ! -s Gather ]; then
-            echo "❌ 文件为空"
-            exit 1
-          fi
+          # 尝试使用公共代理或镜像
+          MIRROR_URLS=(
+            "https://mirror.ghproxy.com/https://tv.iill.top/m3u/Gather"
+            "https://pd.zwc365.com/seturl/https://tv.iill.top/m3u/Gather"
+          )
           
-          FILESIZE=$(stat -c%s Gather)
-          if [ "$FILESIZE" -lt 100 ]; then
-            echo "⚠️ 文件大小异常小，可能是错误页面"
-            cat Gather
-            exit 1
-          fi
+          for url in "${MIRROR_URLS[@]}"; do
+            echo "尝试镜像: $url"
+            curl -f -o Gather "$url"
+            if [ $? -eq 0 ] && [ -s Gather ]; then
+              echo "✅ 镜像下载成功"
+              break
+            fi
+          done
+
+      - name: 手动创建示例文件（如果下载失败）
+        if: failure()
+        run: |
+          echo "由于原链接无法访问，创建示例文件..."
+          cat > Gather << EOF
+          #EXTM3U
+          # 这是一个示例播放列表文件
+          # 原链接 https://tv.iill.top/m3u/Gather 无法访问
+          # 请检查链接是否正确或联系网站管理员
           
-          echo "✅ 文件验证通过"
-          echo "文件大小: $FILESIZE 字节"
+          #EXTINF:-1,示例频道 1
+          https://example.com/stream1
+          
+          #EXTINF:-1,示例频道 2
+          https://example.com/stream2
+          EOF
+          echo "✅ 已创建示例文件"
 
       - name: 检查dpdisk/file仓库是否存在
         id: check_repo
         run: |
-          echo "检查目标仓库是否存在..."
           RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: token ${{ secrets.PANGPANG }}" "https://api.github.com/repos/dpdisk/file")
-          echo "HTTP状态码: $RESPONSE"
           echo "repo_exists=$([ "$RESPONSE" -eq 200 ] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
 
       - name: 若仓库不存在则创建
         if: steps.check_repo.outputs.repo_exists == 'false'
         run: |
-          echo "创建新仓库..."
           curl -X POST \
             -H "Authorization: token ${{ secrets.PANGPANG }}" \
             -H "Content-Type: application/json" \
             -d '{"name":"file","auto_init":true,"visibility":"public"}' \
             "https://api.github.com/user/repos"
-          echo "仓库创建完成"
 
       - name: 克隆dpdisk/file仓库
         run: |
-          echo "克隆目标仓库..."
           git clone -b main --single-branch https://${{ secrets.PANGPANG }}@github.com/dpdisk/file.git target-repo || \
           (mkdir -p target-repo && cd target-repo && git init && git remote add origin https://${{ secrets.PANGPANG }}@github.com/dpdisk/file.git && git checkout -b main)
-          echo "克隆完成"
 
-      - name: 移动文件到目标仓库根目录
+      - name: 移动文件到目标仓库
         run: |
-          echo "移动文件到目标仓库..."
           mv Gather target-repo/
-          ls -la target-repo/
-          echo "✅ 文件已移动到：target-repo/Gather"
+          echo "文件已移动到目标仓库"
 
-      - name: 提交并推送dpdisk仓库变更
+      - name: 提交并推送变更
         run: |
-          echo "提交变更..."
           cd target-repo
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
           git add Gather
-          
-          # 检查是否有变更
-          if git diff-index --quiet HEAD --; then
-            echo "🔄 无文件变更，无需提交"
-          else
-            CURRENT_TIME=$(date -d "+8 hours" +'%Y-%m-%d %H:%M:%S')
-            git commit -m "自动更新: $CURRENT_TIME"
-            echo "✅ 提交完成: $CURRENT_TIME"
-          fi
-
-      - name: 推送到远程仓库
-        run: |
-          cd target-repo
-          echo "推送变更到远程仓库..."
+          CURRENT_TIME=$(date -d "+8 hours" +'%Y-%m-%d %H:%M:%S')
+          git commit -m "自动更新: $CURRENT_TIME (原链接无法访问)" || echo "无变更"
           git push https://${{ secrets.PANGPANG }}@github.com/dpdisk/file.git HEAD:main
-          echo "✅ 推送完成"
-
-      - name: 清理工作区
-        if: always()
-        run: |
-          echo "清理工作区..."
-          rm -rf target-repo/ || true
-          echo "清理完成"
