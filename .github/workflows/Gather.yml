@@ -5,56 +5,25 @@ on:
   workflow_dispatch:
 
 jobs:
-  fake-windows-fetch:
+  extract-real-urls:
     runs-on: ubuntu-latest
     steps:
       - name: 拉取仓库代码
         uses: actions/checkout@v4
-        with:
-          persist-credentials: false
 
-      - name: 伪装成你本地Windows电脑下载（服务器认的环境）
+      - name: 下载并提取真实直播地址
         run: |
-          # 核心：1. 用Windows版curl的User-Agent（骗服务器“这是本地Windows的curl”）
-          #      2. 加Windows环境的默认Accept头（和你电脑浏览器/ curl 发送的一致）
-          #      3. 保留-L跟随跳转（和你BAT一致），无其他多余参数
-          curl -L \
-               -H "User-Agent: curl/7.83.1 (Windows) libcurl/7.83.1 WinSSL" \  # 你本地Windows curl的默认标识（服务器认这个）
-               -H "Accept: */*" \  # 本地Windows curl默认发送的内容接收头
-               -o Gather "https://tv.iill.top/m3u/Gather"
+          curl -L -H "User-Agent: curl/7.83.1 (Windows) libcurl/7.83.1 WinSSL" -H "Accept: */*" -o Gather "https://tv.iill.top/m3u/Gather"
+          grep -E "http://|https://|rtmp://" Gather > GatherReal.txt
+          echo "=== 提取的真实地址数量 ==="
+          wc -l GatherReal.txt
+          echo -e "\n=== 前3个真实地址示例 ==="
+          head -n 3 GatherReal.txt
 
-          # 强制打印完整文件内容（方便你对比：和你电脑BAT下载的Gather逐行对照）
-          echo "=== 1. 下载文件完整内容（和你电脑BAT下载的对比，看是否一致）==="
-          cat Gather
-          echo -e "\n=== 2. 统计直播链接数（你电脑BAT下载的有多少，这里就该有多少）==="
-          grep -c -E "http://|https://|rtmp://" Gather  # 统计有效直播链接数量
-
-      - name: 检查目标仓库
-        id: check-repo
+      - name: 提交真实地址到仓库
         run: |
-          RESPONSE=$(curl -s -w "%{http_code}" -H "Authorization: token ${{ secrets.PANGPANG }}" "https://api.github.com/repos/dpdisk/file")
-          echo "repo_exists=$([ "$(echo $RESPONSE | tail -n1)" -eq 200 ] && echo true || echo false)" >> $GITHUB_OUTPUT
-
-      - name: 创建仓库（若不存在）
-        if: steps.check-repo.outputs.repo_exists == 'false'
-        run: |
-          curl -X POST -H "Authorization: token ${{ secrets.PANGPANG }}" -H "Content-Type: application/json" -d '{"name":"file","auto_init":false,"visibility":"public"}' "https://api.github.com/repos/dpdisk/file"
-
-      - name: 克隆/初始化目标仓库
-        run: |
-          git clone -b main --single-branch https://${{ secrets.PANGPANG }}@github.com/dpdisk/file.git target-repo || (mkdir -p target-repo && cd target-repo && git init && git remote add origin https://${{ secrets.PANGPANG }}@github.com/dpdisk/file.git && git checkout -b main)
-
-      - name: 移动Gather到目标仓库
-        run: |
-          mv -f Gather target-repo/
-          echo "Gather已移动到目标仓库"
-
-      - name: 提交并推送
-        run: |
-          cd target-repo
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
-          git add Gather
-          LIVE_COUNT=$(grep -c -E "http://|https://|rtmp://" Gather)
-          git commit -m "Update Gather (Fake Windows): $(date +'%Y-%m-%d %H:%M:%S +0800') | 直播链接数: $LIVE_COUNT" || echo "无更新，跳过提交"
-          git push https://${{ secrets.PANGPANG }}@github.com/dpdisk/file.git HEAD:main
+          git add GatherReal.txt
+          git commit -m "Update Gather Real URLs: $(date +'%Y-%m-%d %H:%M:%S')" || echo "无新地址，跳过提交"
+          git push
