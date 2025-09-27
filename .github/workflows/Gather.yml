@@ -13,32 +13,18 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: 模拟 APTV/TVBox/OK影视 核心逻辑获取直播源
+      - name: 模拟 APP 逻辑获取直播源（无注释无换行，避免解析错误）
         run: |
-          # 1. 用 APP 专属 User-Agent（APTV/TVBox 通用标识，服务器认这个“APP身份”）
-          # 2. 加 APP 常用 Accept 格式（接收 m3u8 等直播专用格式，不是通用文本）
-          # 3. 用 -L -f 强制跟随所有跳转（APP会自动跳3-5层，这里完全复刻）
-          # 4. 加 -k 忽略证书小问题（部分直播源服务器证书不完整，APP会自动忽略）
-          curl -L -f -k \
-               -H "User-Agent: APTV/3.0 (iOS/Android) / TVBox/2.5 (Android) / OKYINGSHI/1.8" \
-               -H "Accept: application/x-mpegURL, application/vnd.apple.mpegurl, text/vnd.m3u8, */*" \
-               -H "X-App-Type: IPTV-Client" \  # APP 通用自定义头（标记“我是正规直播APP”）
-               -H "Referer: https://tv.iill.top/m3u/" \  # 模拟从 APP 内点击进入源地址
-               -o Gather "https://tv.iill.top/m3u/Gather" \
-               || echo "首次请求失败，重试1次（APP会自动重试，这里复刻）" && curl -L -f -k \
-               -H "User-Agent: APTV/3.0 (iOS/Android) / TVBox/2.5 (Android) / OKYINGSHI/1.8" \
-               -H "Accept: application/x-mpegURL, application/vnd.apple.mpegurl, text/vnd.m3u8, */*" \
-               -H "X-App-Type: IPTV-Client" \
-               -H "Referer: https://tv.iill.top/m3u/" \
-               -o Gather "https://tv.iill.top/m3u/Gather"
+          # 一行式 curl 命令：保留 APP 专属头+跳转+证书忽略，无任何中文/换行
+          curl -L -f -k -H "User-Agent: APTV/3.0 (iOS/Android) / TVBox/2.5 (Android) / OKYINGSHI/1.8" -H "Accept: application/x-mpegURL, application/vnd.apple.mpegurl, text/vnd.m3u8, */*" -H "X-App-Type: IPTV-Client" -H "Referer: https://tv.iill.top/m3u/" -o Gather "https://tv.iill.top/m3u/Gather" || (echo "首次请求失败，重试1次" && curl -L -f -k -H "User-Agent: APTV/3.0 (iOS/Android) / TVBox/2.5 (Android) / OKYINGSHI/1.8" -H "Accept: application/x-mpegURL, application/vnd.apple.mpegurl, text/vnd.m3u8, */*" -H "X-App-Type: IPTV-Client" -H "Referer: https://tv.iill.top/m3u/" -o Gather "https://tv.iill.top/m3u/Gather")
 
-          # 验证：打印 APP 能识别的直播源特征（和你在 APTV/TVBox 里看到的一致）
-          echo "=== 1. 检查是否为 APP 可识别的直播源（必须有 #EXTM3U 开头）==="
-          head -n 1 Gather  # APP 只认 #EXTM3U 开头的文件
-          echo -e "\n=== 2. 检查是否有 APP 可播放的真实直播地址（m3u8/rtmp 格式）==="
-          grep -E "\.m3u8|rtmp://|http.*\.ts" Gather | head -n 3  # 这些是 APP 实际播放的格式
-          echo -e "\n=== 3. 检查是否有频道信息（APP 列表里显示的频道名）==="
-          grep -E "#EXTINF:.*tvname=|#EXTINF:.*频道" Gather | head -n 2  # APP 频道列表的来源
+          # 验证 APP 直播源特征（纯英文日志，避免编码干扰）
+          echo "=== 1. Check if APP-recognizable (must start with #EXTM3U) ==="
+          head -n 1 Gather
+          echo -e "\n=== 2. Check playable live links (m3u8/rtmp/ts) ==="
+          grep -E "\.m3u8|rtmp://|http.*\.ts" Gather | head -n 3 || echo "No playable links yet"
+          echo -e "\n=== 3. Check channel info (APP channel list) ==="
+          grep -E "#EXTINF:.*tvname=|#EXTINF:.*频道" Gather | head -n 2 || echo "No channel info yet"
 
       - name: 检查 dpdisk/file 仓库是否存在
         id: check_repo
@@ -59,7 +45,7 @@ jobs:
       - name: 移动 Gather 到目标仓库
         run: |
           mv -f Gather target-repo/
-          echo "Gather 已移动到目标仓库（和 APP 获取的内容一致）"
+          echo "Gather moved to target-repo/"
 
       - name: 提交并推送真实直播源
         run: |
@@ -67,8 +53,7 @@ jobs:
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
           git add Gather
-          # 统计 APP 可播放的真实地址数量（方便你确认是否有效）
           LIVE_COUNT=$(grep -E "\.m3u8|rtmp://|http.*\.ts" Gather | wc -l)
           CURRENT_TIME=$(date -d "+8 hours" +'%Y-%m-%d %H:%M:%S')
-          git commit -m "Update Gather (APP-Like): $CURRENT_TIME | Playable Links: $LIVE_COUNT" || echo "文件无变更，无需提交"
+          git commit -m "Update Gather (APP-Like): $CURRENT_TIME | Playable Links: $LIVE_COUNT" || echo "No update, skip commit"
           git push https://${{ secrets.PANGPANG }}@github.com/dpdisk/file.git HEAD:main
