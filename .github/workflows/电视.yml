@@ -1,54 +1,63 @@
-name: tv-sync
+name: tv-file-merge-clean-sync
 on:
   schedule:
-    - cron: "*/15 * * * *"
-  workflow_dispatch:
+    - cron: "*/15 * * * *"  # 每15分钟更新（+8时区0/15/30/45分）
+  workflow_dispatch:  # 保留手动触发
 
 jobs:
-  sync:
+  sync-tv-with-clean:
     runs-on: ubuntu-latest
+    timeout-minutes: 5  # 限制超时
     steps:
-      - uses: actions/checkout@v4
+      - name: 拉取当前仓库代码
+        uses: actions/checkout@v4
         with:
           persist-credentials: false
-          fetch-depth: 1
+          fetch-depth: 1  # 仅拉最新提交
 
-      - run: sudo apt update -y && sudo apt install -y sed curl
+      - name: 配置基础环境
+        run: sudo apt update -y && sudo apt install -y sed curl
 
-      # 下载tv源文件
-      - run: |
+      - name: 下载 tv 源文件（3次重试，10秒超时）
+        run: |
           curl -f -o tv_source -m 10 --retry 3 "http://123.56.43.183/tv/m3u/tv"
-          [ ! -f "tv_source" ] || [ $(du -b "tv_source" | cut -f1) -eq 0 ] && exit 1
+          [ ! -f "tv_source" ] || [ $(du -b "tv_source" | cut -f1) -eq 0 ] && { echo "tv 源文件异常"; exit 1; }
+          echo "tv 源文件大小：$(du -h tv_source)"
 
-      # 下载migu源文件
-      - run: |
+      - name: 下载 migu_video 源文件（3次重试，10秒超时）
+        run: |
           curl -f -o migu_source -m 10 --retry 3 "https://raw.githubusercontent.com/develop202/migu_video/refs/heads/main/interface.txt"
-          [ ! -f "migu_source" ] || [ $(du -b "migu_source" | cut -f1) -eq 0 ] && exit 1
+          [ ! -f "migu_source" ] || [ $(du -b "migu_source" | cut -f1) -eq 0 ] && { echo "migu 源文件异常"; exit 1; }
+          echo "migu 源文件大小：$(du -h migu_source)"
 
-      # 合并+清理字段
-      - run: |
+      - name: 合并源文件并清理字段（svg-id/svg-name/tvg-id/tvg-name）
+        run: |
           cat tv_source migu_source | grep -v '^$' > tv_temp
+          echo "合并后初始行数：$(wc -l < tv_temp)"
+          
           sed -i -E '
             s/(svg-id=("([^"]*)"|'\''([^'\'']*)'\''))[[:space:]]*(svg-name=("([^"]*)"|'\''([^'\'']*)'\''))//g;
             s/(svg-id|svg-name|tvg-id|tvg-name)=("([^"]*)"|'\''([^'\'']*)'\''))//g;
             s/  */ /g; s/^ //; s/ $//; /^$/d
           ' tv_temp
+          
           mv tv_temp tv
+          echo "清理后行数：$(wc -l < tv)，大小：$(du -h tv)"
 
-      # 检查目标仓库
-      - id: check_repo
+      - name: 检查 dpdisk/file 仓库是否存在
+        id: check_repo
         run: |
           HTTP_CODE=$(curl -s -w "%{http_code}" -m 10 -H "Authorization: token ${{ secrets.PANGPANG }}" "https://api.github.com/repos/dpdisk/file" | tail -n1)
           echo "repo_exists=$([ "$HTTP_CODE" -eq 200 ] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
 
-      # 创建仓库（不存在时）
-      - if: steps.check_repo.outputs.repo_exists == 'false'
+      - name: 若仓库不存在则创建
+        if: steps.check_repo.outputs.repo_exists == 'false'
         run: |
           CREATE_CODE=$(curl -s -w "%{http_code}" -X POST -m 15 -H "Authorization: token ${{ secrets.PANGPANG }}" -H "Content-Type: application/json" -d '{"name":"file","auto_init":false,"visibility":"public"}' "https://api.github.com/user/repos" | tail -n1)
-          [ "$CREATE_CODE" -ne 201 ] && exit 1
+          [ "$CREATE_CODE" -ne 201 ] && { echo "仓库创建失败"; exit 1; }
 
-      # 推送文件
-      - run: |
+      - name: 克隆仓库并推送文件
+        run: |
           # 克隆/初始化仓库
           git clone -b main --single-branch --depth 1 https://${{ secrets.PANGPANG }}@github.com/dpdisk/file.git target-repo || (mkdir -p target-repo && cd target-repo && git init && git remote add origin https://${{ secrets.PANGPANG }}@github.com/dpdisk/file.git && git checkout -b main)
           
@@ -56,8 +65,18 @@ jobs:
           mv tv target-repo/ && cd target-repo
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
-          git diff --quiet -- tv && exit 0
+          
+          git diff --quiet -- tv && { echo "无变更，无需提交"; exit 0; }
           
           COMMIT_MSG="sync: merge & clean tv - $(date -d "+8 hours" +'%Y-%m-%d %H:%M:%S')"
           git add tv && git commit -m "$COMMIT_MSG"
           git push --retry 3 https://${{ secrets.PANGPANG }}@github.com/dpdisk/file.git HEAD:main
+          echo "文件已推送至 dpdisk/file"
+
+      - name: 输出同步结果
+        run: |
+          echo "=== 同步完成 ==="
+          echo "源文件1大小：$(du -h tv_source 2>/dev/null || echo "已删除")"
+          echo "源文件2大小：$(du -h migu_source 2>/dev/null || echo "已删除")"
+          echo "最终tv大小：$(du -h tv)，行数：$(wc -l < tv)"
+          echo "完成时间（+8时区）：$(date -d "+8 hours" +'%Y-%m-%d %H:%M:%S')"
