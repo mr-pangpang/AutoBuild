@@ -1,11 +1,11 @@
 name: tv-file-merge-process-sync
 on:
   schedule:
-    - cron: "*/15 * * * *"  # 统一每15分钟执行一次更新
+    - cron: "*/15 * * * *"  # 统一每15分钟更新一次
   workflow_dispatch:  # 保留手动触发功能
 
 jobs:
-  download-merge-process-save-tv:
+  download-merge-clean-save-tv:
     runs-on: ubuntu-latest
     steps:
       - name: 拉取当前仓库代码
@@ -13,97 +13,65 @@ jobs:
         with:
           persist-credentials: false
 
-      # 1. 下载两个源文件（按你要求的顺序：先第一个tv源，再第二个migu源）
-      - name: 第一步 - 下载原第一个工作流的 tv 源文件
+      # 1. 下载两个源文件
+      - name: 下载 tv 源文件
         run: |
           curl -f -o tv_source "http://123.56.43.183/tv/m3u/tv"
-          if [ $? -ne 0 ]; then echo "tv 源文件下载失败"; exit 1; fi
           echo "tv 源文件下载完成，大小：$(du -h tv_source)"
 
-      - name: 第二步 - 下载原第二个工作流的 migu_video 源文件
+      - name: 下载 migu_video 源文件
         run: |
           curl -f -o migu_source "https://raw.githubusercontent.com/develop202/migu_video/refs/heads/main/interface.txt"
-          if [ $? -ne 0 ]; then echo "migu_video 源文件下载失败"; exit 1; fi
           echo "migu_video 源文件下载完成，大小：$(du -h migu_source)"
 
-      # 2. 合并两个源文件（严格按 bat 处理逻辑的文件操作流程，先合并再分步处理）
-      - name: 第三步 - 合并两个源文件为初始 m3u 文件
+      # 2. 合并源文件为临时文件
+      - name: 合并两个源文件
         run: |
-          # 完全复刻 bat 中“处理对象为 m3u 文件”的逻辑，先合并生成 m3u 文件
-          cat tv_source migu_source > m3u
-          echo "两个源文件合并完成，初始 m3u 文件大小：$(du -h m3u)"
+          cat tv_source migu_source > tv_temp
+          echo "源文件合并完成，临时文件大小：$(du -h tv_temp)"
 
-      # 3. 精准复刻 m3u.bat 的 3 步处理逻辑（用 PowerShell 执行，与 bat 内核一致）
-      - name: 第四步 - 安装 PowerShell（确保与 bat 中处理环境一致）
+      # 3. 核心清理：删除所有 tvg-id 和 tvg-name 字段（用 Ubuntu 原生工具，高效稳定）
+      - name: 清理 tvg-id 字段
         run: |
-          sudo apt update && sudo apt install -y powershell
-          echo "PowerShell 安装完成，版本：$(pwsh --version)"
+          # 匹配所有 "tvg-id='任意内容'" 或 'tvg-id="任意内容"' 格式，直接删除
+          sed -i -E 's/(tvg-id=("([^"]*)"|'\''([^'\'']*)'\''))//g' tv_temp
+          echo "已删除所有 tvg-id 字段"
 
-      - name: 第五步 - 执行 Step1：删除 tvg-id 字段（完全复刻 bat 命令）
+      - name: 清理 tvg-name 字段
         run: |
-          # 直接复用 bat 中的 PowerShell 命令，仅调整编码参数适配 Ubuntu
-          pwsh -Command "(Get-Content 'm3u' -Encoding UTF8) -replace 'tvg-id=\""[^\""]*\""', '' | Set-Content 'temp.txt' -Encoding UTF8"
-          echo "Step1 完成：已删除所有 tvg-id 字段，生成 temp.txt"
+          # 同样匹配单双引号格式，避免因引号类型导致清理不彻底
+          sed -i -E 's/(tvg-name=("([^"]*)"|'\''([^'\'']*)'\''))//g' tv_temp
+          echo "已删除所有 tvg-name 字段"
 
-      - name: 第六步 - 执行 Step2：删除 tvg-name 字段（完全复刻 bat 命令）
+      # 4. 优化格式：清理多余空格（避免字段删除后残留空字符）
+      - name: 清理连续空格和首尾空格
         run: |
-          # 保持与 bat 完全一致的命令逻辑，处理 temp.txt 生成 _m3u
-          pwsh -Command "(Get-Content 'temp.txt' -Encoding UTF8) -replace 'tvg-name=\""[^\""]*\""', '' | Set-Content '_m3u' -Encoding UTF8"
-          echo "Step2 完成：已删除所有 tvg-name 字段，生成 _m3u"
+          # 连续空格替换为单个空格，同时删除行首尾空格
+          sed -i -e 's/  */ /g' -e 's/^ //' -e 's/ $//' tv_temp
+          # 重命名为最终 tv 文件
+          mv tv_temp tv
+          echo "格式优化完成，最终 tv 文件大小：$(du -h tv)"
 
-      - name: 第七步 - 执行 Step3：清理多余空格（完全复刻 bat 命令）
-        run: |
-          # 复用 bat 中的“连续空格替换为单个空格”正则，直接处理 _m3u
-          pwsh -Command "(Get-Content '_m3u' -Encoding UTF8) -replace ' +', ' ' | Set-Content '_m3u' -Encoding UTF8"
-          # 复刻 bat 中的清理临时文件步骤
-          rm -f temp.txt
-          echo "Step3 完成：已清理多余空格，删除临时文件 temp.txt"
-
-      # 4. 按你要求：处理后内容保存为 tv 文件并推送至第二仓库（dpdisk/file）
-      - name: 第八步 - 重命名处理后的文件为 tv（匹配你要求的最终文件名）
-        run: |
-          mv _m3u tv
-          echo "处理完成，最终 tv 文件大小：$(du -h tv)"
-
-      # 5. 检查并准备第二仓库（dpdisk/file）
-      - name: 第九步 - 检查 dpdisk/file 仓库是否存在
+      # 5. 推送至第二仓库（dpdisk/file）
+      - name: 检查 dpdisk/file 仓库是否存在
         id: check_repo
         run: |
           RESPONSE=$(curl -s -w "%{http_code}" -H "Authorization: token ${{ secrets.PANGPANG }}" "https://api.github.com/repos/dpdisk/file")
-          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
           echo "repo_exists=$([ "$HTTP_CODE" -eq 200 ] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
 
-      - name: 第十步 - 若第二仓库不存在则创建（复刻原逻辑）
+      - name: 若仓库不存在则创建
         if: steps.check_repo.outputs.repo_exists == 'false'
         run: |
           curl -X POST -H "Authorization: token ${{ secrets.PANGPANG }}" -H "Content-Type: application/json" -d '{"name":"file","auto_init":false,"visibility":"public"}' "https://api.github.com/user/repos"
-          if [ $? -ne 0 ]; then echo "第二仓库创建失败"; exit 1; fi
-          echo "dpdisk/file 仓库创建完成"
 
-      - name: 第十一步 - 克隆第二仓库（dpdisk/file）
+      - name: 克隆仓库并推送文件
         run: |
-          git clone -b main --single-branch https://${{ secrets.PANGPANG }}@github.com/dpdisk/file.git target-repo || (
-            mkdir -p target-repo && cd target-repo && 
-            git init && 
-            git remote add origin https://${{ secrets.PANGPANG }}@github.com/dpdisk/file.git && 
-            git checkout -b main
-          )
-          echo "第二仓库克隆/初始化完成"
-
-      # 6. 推送处理后的 tv 文件到第二仓库
-      - name: 第十二步 - 移动 tv 文件到第二仓库并推送
-        run: |
-          # 移动最终 tv 文件到第二仓库根目录
+          git clone -b main --single-branch https://${{ secrets.PANGPANG }}@github.com/dpdisk/file.git target-repo || (mkdir -p target-repo && cd target-repo && git init && git remote add origin https://${{ secrets.PANGPANG }}@github.com/dpdisk/file.git && git checkout -b main)
           mv tv target-repo/
           cd target-repo
-          # 配置 Git 信息并提交
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
           git add tv
-          # 生成带时区的时间戳（复刻原逻辑）
           CURRENT_TIME=$(date -d "+8 hours" +'%Y-%m-%d %H:%M:%S')
-          # 提交信息明确标注“按 bat 逻辑处理”
-          git commit -m "按 m3u.bat 逻辑处理：合并tv+migu源，删tvg-id/tvg-name+清空格 - updatetime $CURRENT_TIME" || echo "tv 文件无变更，无需提交"
-          # 推送至第二仓库 main 分支
+          git commit -m "clean tvg-id/tvg-name + merge sources to tv - updatetime $CURRENT_TIME" || echo "无变更无需提交"
           git push https://${{ secrets.PANGPANG }}@github.com/dpdisk/file.git HEAD:main
-          echo "处理后的 tv 文件已推送至第二仓库 dpdisk/file"
