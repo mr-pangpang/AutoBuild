@@ -1,82 +1,85 @@
-name: tv-file-merge-clean-sync
+name: tv-file-merge-process-sync
 on:
   schedule:
-    - cron: "*/15 * * * *"  # 每15分钟更新（+8时区0/15/30/45分）
-  workflow_dispatch:  # 保留手动触发
+    - cron: "*/15 * * * *"  # 统一每15分钟更新一次
+  workflow_dispatch:  # 保留手动触发功能
 
 jobs:
-  sync-tv-with-clean:
+  download-merge-clean-save-tv:
     runs-on: ubuntu-latest
-    timeout-minutes: 5  # 限制超时
     steps:
       - name: 拉取当前仓库代码
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-          fetch-depth: 1  # 仅拉最新提交
 
-      - name: 配置基础环境
-        run: sudo apt update -y && sudo apt install -y sed curl
-
-      - name: 下载 tv 源文件（3次重试，10秒超时）
+      # 1. 下载两个源文件
+      - name: 下载 tv 源文件
         run: |
-          curl -f -o tv_source -m 10 --retry 3 "http://123.56.43.183/tv/m3u/tv"
-          [ ! -f "tv_source" ] || [ $(du -b "tv_source" | cut -f1) -eq 0 ] && { echo "tv 源文件异常"; exit 1; }
-          echo "tv 源文件大小：$(du -h tv_source)"
+          curl -f -o tv_source "http://123.56.43.183/tv/m3u/tv"
+          echo "tv 源文件下载完成，大小：$(du -h tv_source)"
 
-      - name: 下载 migu_video 源文件（3次重试，10秒超时）
+      - name: 下载 migu_video 源文件
         run: |
-          curl -f -o migu_source -m 10 --retry 3 "https://raw.githubusercontent.com/develop202/migu_video/refs/heads/main/interface.txt"
-          [ ! -f "migu_source" ] || [ $(du -b "migu_source" | cut -f1) -eq 0 ] && { echo "migu 源文件异常"; exit 1; }
-          echo "migu 源文件大小：$(du -h migu_source)"
+          curl -f -o migu_source "https://raw.githubusercontent.com/develop202/migu_video/refs/heads/main/interface.txt"
+          echo "migu_video 源文件下载完成，大小：$(du -h migu_source)"
 
-      - name: 合并源文件并清理字段（svg-id/svg-name/tvg-id/tvg-name）
+      # 2. 合并源文件为临时文件
+      - name: 合并两个源文件
         run: |
-          cat tv_source migu_source | grep -v '^$' > tv_temp
-          echo "合并后初始行数：$(wc -l < tv_temp)"
-          
-          sed -i -E '
-            s/(svg-id=("([^"]*)"|'\''([^'\'']*)'\''))[[:space:]]*(svg-name=("([^"]*)"|'\''([^'\'']*)'\''))//g;
-            s/(svg-id|svg-name|tvg-id|tvg-name)=("([^"]*)"|'\''([^'\'']*)'\''))//g;
-            s/  */ /g; s/^ //; s/ $//; /^$/d
-          ' tv_temp
-          
+          cat tv_source migu_source > tv_temp
+          echo "源文件合并完成，临时文件大小：$(du -h tv_temp)"
+
+      # 3. 核心清理步骤：按要求删除指定内容 + 原 tvg-id/tvg-name 清理
+      - name: 清理步骤1 - 删除 svg-id 和 svg-name 字段（匹配 "svg-id='xxx' svg-name='xxx'" 格式）
+        run: |
+          # 正则匹配并删除 "svg-id=\"任意内容\" svg-name=\"任意内容\"" 或单引号格式，确保完整删除
+          sed -i -E 's/(svg-id=("([^"]*)"|'\''([^'\'']*)'\''))[[:space:]]*(svg-name=("([^"]*)"|'\''([^'\'']*)'\''))//g' tv_temp
+          # 单独处理仅存在 svg-id 或 svg-name 的情况（避免遗漏）
+          sed -i -E 's/(svg-id=("([^"]*)"|'\''([^'\'']*)'\''))//g' tv_temp
+          sed -i -E 's/(svg-name=("([^"]*)"|'\''([^'\'']*)'\''))//g' tv_temp
+          echo "已删除所有 svg-id 和 svg-name 字段"
+
+      - name: 清理步骤2 - 删除 tvg-id 字段
+        run: |
+          sed -i -E 's/(tvg-id=("([^"]*)"|'\''([^'\'']*)'\''))//g' tv_temp
+          echo "已删除所有 tvg-id 字段"
+
+      - name: 清理步骤3 - 删除 tvg-name 字段
+        run: |
+          sed -i -E 's/(tvg-name=("([^"]*)"|'\''([^'\'']*)'\''))//g' tv_temp
+          echo "已删除所有 tvg-name 字段"
+
+      # 4. 优化格式：清理残留空格和空行
+      - name: 清理步骤4 - 优化文本格式
+        run: |
+          # 连续空格替换为单个空格，删除行首尾空格，去除空行
+          sed -i -e 's/  */ /g' -e 's/^ //' -e 's/ $//' -e '/^$/d' tv_temp
+          # 重命名为最终 tv 文件
           mv tv_temp tv
-          echo "清理后行数：$(wc -l < tv)，大小：$(du -h tv)"
+          echo "格式优化完成，最终 tv 文件大小：$(du -h tv)"
 
+      # 5. 推送至第二仓库（dpdisk/file）
       - name: 检查 dpdisk/file 仓库是否存在
         id: check_repo
         run: |
-          HTTP_CODE=$(curl -s -w "%{http_code}" -m 10 -H "Authorization: token ${{ secrets.PANGPANG }}" "https://api.github.com/repos/dpdisk/file" | tail -n1)
+          RESPONSE=$(curl -s -w "%{http_code}" -H "Authorization: token ${{ secrets.PANGPANG }}" "https://api.github.com/repos/dpdisk/file")
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
           echo "repo_exists=$([ "$HTTP_CODE" -eq 200 ] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
 
       - name: 若仓库不存在则创建
         if: steps.check_repo.outputs.repo_exists == 'false'
         run: |
-          CREATE_CODE=$(curl -s -w "%{http_code}" -X POST -m 15 -H "Authorization: token ${{ secrets.PANGPANG }}" -H "Content-Type: application/json" -d '{"name":"file","auto_init":false,"visibility":"public"}' "https://api.github.com/user/repos" | tail -n1)
-          [ "$CREATE_CODE" -ne 201 ] && { echo "仓库创建失败"; exit 1; }
+          curl -X POST -H "Authorization: token ${{ secrets.PANGPANG }}" -H "Content-Type: application/json" -d '{"name":"file","auto_init":false,"visibility":"public"}' "https://api.github.com/user/repos"
 
       - name: 克隆仓库并推送文件
         run: |
-          # 克隆/初始化仓库
-          git clone -b main --single-branch --depth 1 https://${{ secrets.PANGPANG }}@github.com/dpdisk/file.git target-repo || (mkdir -p target-repo && cd target-repo && git init && git remote add origin https://${{ secrets.PANGPANG }}@github.com/dpdisk/file.git && git checkout -b main)
-          
-          # 提交推送
-          mv tv target-repo/ && cd target-repo
+          git clone -b main --single-branch https://${{ secrets.PANGPANG }}@github.com/dpdisk/file.git target-repo || (mkdir -p target-repo && cd target-repo && git init && git remote add origin https://${{ secrets.PANGPANG }}@github.com/dpdisk/file.git && git checkout -b main)
+          mv tv target-repo/
+          cd target-repo
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
-          
-          git diff --quiet -- tv && { echo "无变更，无需提交"; exit 0; }
-          
-          COMMIT_MSG="sync: merge & clean tv - $(date -d "+8 hours" +'%Y-%m-%d %H:%M:%S')"
-          git add tv && git commit -m "$COMMIT_MSG"
-          git push --retry 3 https://${{ secrets.PANGPANG }}@github.com/dpdisk/file.git HEAD:main
-          echo "文件已推送至 dpdisk/file"
-
-      - name: 输出同步结果
-        run: |
-          echo "=== 同步完成 ==="
-          echo "源文件1大小：$(du -h tv_source 2>/dev/null || echo "已删除")"
-          echo "源文件2大小：$(du -h migu_source 2>/dev/null || echo "已删除")"
-          echo "最终tv大小：$(du -h tv)，行数：$(wc -l < tv)"
-          echo "完成时间（+8时区）：$(date -d "+8 hours" +'%Y-%m-%d %H:%M:%S')"
+          git add tv
+          CURRENT_TIME=$(date -d "+8 hours" +'%Y-%m-%d %H:%M:%S')
+          git commit -m "clean svg-id/svg-name/tvg-id/tvg-name + merge sources to tv - updatetime $CURRENT_TIME" || echo "无变更无需提交"
+          git push https://${{ secrets.PANGPANG }}@github.com/dpdisk/file.git HEAD:main
