@@ -36,8 +36,8 @@ jobs:
 
       - name: 移动文件到目标仓库根目录
         run: |
-          mv TVBox target-repo/
-          echo "文件已移动到：target-repo/TVBox"
+          mv TVBox.bak target-repo/
+          echo "文件已移动到：target-repo/TVBox.bak"
 
       - name: 提交并推送dpdisk仓库变更
         run: |
