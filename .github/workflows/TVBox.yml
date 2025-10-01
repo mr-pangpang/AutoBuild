@@ -1,7 +1,7 @@
 name: TVBox
 on:
   schedule:
-    - cron: "0 */2 * * *"
+    - cron: "0 0 * * *"
   workflow_dispatch:
 
 jobs:
@@ -15,7 +15,7 @@ jobs:
 
       - name: 从指定链接下载TVBox
         run: |
-          curl -f -o TVBox "http://123.56.43.183/tv/TVBox.apk"
+          curl -f -o TVBox.apk "http://123.56.43.183/tv/TVBox.apk"
           echo "下载完成，文件大小：$(du -h TVBox)"
 
       - name: 检查dpdisk/file仓库是否存在
