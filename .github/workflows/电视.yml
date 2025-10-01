@@ -1,0 +1,60 @@
+name: tv-file-merge-sync
+on:
+  schedule:
+    - cron: "*/15 * * * *"  # 统一每15分钟执行一次更新
+  workflow_dispatch:  # 保留手动触发功能
+
+jobs:
+  download-merge-save-tv:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 拉取当前仓库代码
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: 下载原第一个工作流的 tv 源文件
+        run: |
+          curl -f -o tv_source "http://123.56.43.183/tv/m3u/tv"
+          echo "原 tv 源文件下载完成，大小：$(du -h tv_source)"
+
+      - name: 下载原第二个工作流的 migu_video 源文件
+        run: |
+          curl -f -o migu_source "https://raw.githubusercontent.com/develop202/migu_video/refs/heads/main/interface.txt"
+          echo "原 migu_video 源文件下载完成，大小：$(du -h migu_source)"
+
+      - name: 合并两个源文件为最终 tv 文件
+        run: |
+          cat tv_source migu_source > tv  # 顺序拼接合并（tv源内容在前，migu源内容在后）
+          echo "两个源文件合并完成，最终 tv 文件大小：$(du -h tv)"
+
+      - name: 检查 dpdisk/file 仓库是否存在
+        id: check_repo
+        run: |
+          RESPONSE=$(curl -s -w "%{http_code}" -H "Authorization: token ${{ secrets.PANGPANG }}" "https://api.github.com/repos/dpdisk/file")
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          echo "repo_exists=$([ "$HTTP_CODE" -eq 200 ] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
+
+      - name: 若 dpdisk/file 仓库不存在则创建
+        if: steps.check_repo.outputs.repo_exists == 'false'
+        run: |
+          curl -X POST -H "Authorization: token ${{ secrets.PANGPANG }}" -H "Content-Type: application/json" -d '{"name":"file","auto_init":false,"visibility":"public"}' "https://api.github.com/user/repos"
+
+      - name: 克隆 dpdisk/file 仓库（空仓库首次克隆自动初始化分支）
+        run: |
+          git clone -b main --single-branch https://${{ secrets.PANGPANG }}@github.com/dpdisk/file.git target-repo || (mkdir -p target-repo && cd target-repo && git init && git remote add origin https://${{ secrets.PANGPANG }}@github.com/dpdisk/file.git && git checkout -b main)
+
+      - name: 移动合并后的 tv 文件到 dpdisk/file 仓库根目录
+        run: |
+          mv tv target-repo/
+          echo "合并后的 tv 文件已移动到：target-repo/tv"
+
+      - name: 提交并推送 dpdisk/file 仓库的 tv 文件变更
+        run: |
+          cd target-repo
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          git add tv
+          CURRENT_TIME=$(date -d "+8 hours" +'%Y-%m-%d %H:%M:%S')
+          git commit -m "merge tv_source & migu_source to tv (15min sync) - updatetime $CURRENT_TIME" || echo "合并后的 tv 文件无变更，无需提交"
+          git push https://${{ secrets.PANGPANG }}@github.com/dpdisk/file.git HEAD:main
