@@ -1,137 +1,73 @@
-name: tv-file-merge-clean-sync
+name: tv-sync
 on:
   schedule:
-    - cron: "*/15 * * * *"  # 统一每15分钟执行一次更新（UTC时间，+8时区为每小时0/15/30/45分）
-  workflow_dispatch:  # 保留手动触发，支持紧急更新或测试
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
     inputs:
       sync_note:
-        description: "手动同步备注（可选）"
+        description: "同步备注（可选）"
         required: false
-        default: "手动触发同步"
+        default: "手动同步"
 
 jobs:
-  sync-tv-with-clean:
+  sync:
     runs-on: ubuntu-latest
-    timeout-minutes: 5  # 限制任务超时（避免资源占用）
     steps:
-      # 基础准备：拉取代码 + 配置依赖
-      - name: 拉取当前仓库代码
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           persist-credentials: false
-          fetch-depth: 1  # 仅拉取最新提交，减少耗时
+          fetch-depth: 1
 
-      - name: 配置基础环境（确保sed等工具可用）
-        run: |
-          sudo apt update -y && sudo apt install -y sed curl  # 显式安装依赖，避免环境差异
-          echo "基础环境配置完成"
+      - run: sudo apt update -y && sudo apt install -y sed curl
 
-      # 1. 下载源文件（增加失败重试 + 超时控制）
-      - name: 下载 tv 源文件（3次重试，10秒超时）
-        run: |
+      - run: |
           curl -f -o tv_source -m 10 --retry 3 "http://123.56.43.183/tv/m3u/tv"
-          if [ ! -f "tv_source" ] || [ $(du -b "tv_source" | cut -f1) -eq 0 ]; then
-            echo "tv 源文件下载失败或为空"
-            exit 1
-          fi
-          echo "tv 源文件下载完成，大小：$(du -h tv_source)"
+          [ ! -f "tv_source" ] || [ $(du -b "tv_source" | cut -f1) -eq 0 ] && exit 1
 
-      - name: 下载 migu_video 源文件（3次重试，10秒超时）
-        run: |
+      - run: |
           curl -f -o migu_source -m 10 --retry 3 "https://raw.githubusercontent.com/develop202/migu_video/refs/heads/main/interface.txt"
-          if [ ! -f "migu_source" ] || [ $(du -b "migu_source" | cut -f1) -eq 0 ]; then
-            echo "migu_video 源文件下载失败或为空"
-            exit 1
-          fi
-          echo "migu_video 源文件下载完成，大小：$(du -h migu_source)"
+          [ ! -f "migu_source" ] || [ $(du -b "migu_source" | cut -f1) -eq 0 ] && exit 1
 
-      # 2. 合并 + 清理（整合清理逻辑，减少临时文件操作）
-      - name: 合并源文件并批量清理指定字段
-        run: |
-          # 合并源文件到临时文件，同时过滤空行（减少后续处理量）
+      - run: |
           cat tv_source migu_source | grep -v '^$' > tv_temp
-          echo "源文件合并完成，初始行数：$(wc -l < tv_temp)"
-
-          # 批量清理：svg-id/svg-name/tvg-id/tvg-name（整合为1步，减少sed执行次数）
           sed -i -E '
-            # 删除 svg-id + svg-name 组合或单独字段（匹配单双引号）
             s/(svg-id=("([^"]*)"|'\''([^'\'']*)'\''))[[:space:]]*(svg-name=("([^"]*)"|'\''([^'\'']*)'\''))//g;
             s/(svg-id=("([^"]*)"|'\''([^'\'']*)'\''))//g;
             s/(svg-name=("([^"]*)"|'\''([^'\'']*)'\''))//g;
-            # 删除 tvg-id + tvg-name 组合或单独字段
             s/(tvg-id=("([^"]*)"|'\''([^'\'']*)'\''))[[:space:]]*(tvg-name=("([^"]*)"|'\''([^'\'']*)'\''))//g;
             s/(tvg-id=("([^"]*)"|'\''([^'\'']*)'\''))//g;
             s/(tvg-name=("([^"]*)"|'\''([^'\'']*)'\''))//g;
-            # 清理残留空格（连续空格→单个空格，行首尾空格）
             s/  */ /g;
             s/^ //;
             s/ $//;
-            # 最终过滤空行
             /^$/d
           ' tv_temp
-
-          # 重命名为最终 tv 文件
           mv tv_temp tv
-          echo "字段清理完成，最终 tv 文件行数：$(wc -l < tv)"
-          echo "最终 tv 文件大小：$(du -h tv)"
 
-      # 3. 推送至目标仓库（增加仓库操作容错 + 提交信息优化）
-      - name: 检查 dpdisk/file 仓库是否存在
-        id: check_repo
+      - id: check_repo
         run: |
           RESPONSE=$(curl -s -w "%{http_code}" -m 10 -H "Authorization: token ${{ secrets.PANGPANG }}" "https://api.github.com/repos/dpdisk/file")
           HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
           echo "repo_exists=$([ "$HTTP_CODE" -eq 200 ] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
-          echo "仓库检查结果：HTTP 状态码 $HTTP_CODE"
 
-      - name: 若仓库不存在则创建（显式错误处理）
-        if: steps.check_repo.outputs.repo_exists == 'false'
+      - if: steps.check_repo.outputs.repo_exists == 'false'
         run: |
           CREATE_RESP=$(curl -s -w "%{http_code}" -X POST -m 15 -H "Authorization: token ${{ secrets.PANGPANG }}" -H "Content-Type: application/json" -d '{"name":"file","auto_init":false,"visibility":"public"}' "https://api.github.com/user/repos")
           CREATE_CODE=$(echo "$CREATE_RESP" | tail -n1)
-          if [ "$CREATE_CODE" -ne 201 ]; then
-            echo "仓库创建失败，HTTP 状态码 $CREATE_CODE"
-            exit 1
-          fi
-          echo "dpdisk/file 仓库创建完成"
+          [ "$CREATE_CODE" -ne 201 ] && exit 1
 
-      - name: 克隆目标仓库并推送文件（容错处理）
-        run: |
-          # 克隆仓库（空仓库初始化分支）
+      - run: |
           if ! git clone -b main --single-branch --depth 1 https://${{ secrets.PANGPANG }}@github.com/dpdisk/file.git target-repo; then
             mkdir -p target-repo && cd target-repo && git init && git remote add origin https://${{ secrets.PANGPANG }}@github.com/dpdisk/file.git && git checkout -b main
           fi
-
-          # 移动文件 + 提交推送
           mv tv target-repo/
           cd target-repo
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
-          
-          # 仅在文件有变更时提交
-          if git diff --quiet -- tv; then
-            echo "tv 文件无变更，无需提交"
-            exit 0
-          fi
-
-          # 生成带时区的提交信息（支持手动备注）
+          git diff --quiet -- tv && exit 0
           CURRENT_TIME=$(date -d "+8 hours" +'%Y-%m-%d %H:%M:%S')
           SYNC_NOTE="${{ github.event.inputs.sync_note }}"
-          COMMIT_MSG="sync: merge tv+migu sources, clean specified fields - updatetime $CURRENT_TIME"
+          COMMIT_MSG="sync: merge & clean tv - $CURRENT_TIME"
           [ -n "$SYNC_NOTE" ] && COMMIT_MSG="$COMMIT_MSG | $SYNC_NOTE"
-          
-          git add tv
-          git commit -m "$COMMIT_MSG"
-          # 推送重试（避免网络波动）
+          git add tv && git commit -m "$COMMIT_MSG"
           git push --retry 3 https://${{ secrets.PANGPANG }}@github.com/dpdisk/file.git HEAD:main
-          echo "tv 文件已成功推送至 dpdisk/file 仓库"
-
-      # 4. 输出最终结果（便于日志排查）
-      - name: 输出同步结果摘要
-        run: |
-          echo "=== 同步结果摘要 ==="
-          echo "源文件1（tv）大小：$(du -h tv_source 2>/dev/null || echo "已删除")"
-          echo "源文件2（migu）大小：$(du -h migu_source 2>/dev/null || echo "已删除")"
-          echo "最终 tv 文件大小：$(du -h tv)"
-          echo "最终 tv 文件行数：$(wc -l < tv)"
-          echo "同步完成时间（+8时区）：$(date -d "+8 hours" +'%Y-%m-%d %H:%M:%S')"
