@@ -1,8 +1,8 @@
 name: tv-file-merge-process-sync
 on:
   schedule:
-    - cron: "*/15 * * * *"  # 统一每15分钟更新一次
-  workflow_dispatch:  # 保留手动触发功能
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
 
 jobs:
   download-merge-clean-save-tv:
@@ -13,48 +13,33 @@ jobs:
         with:
           persist-credentials: false
 
-      # 1. 下载两个源文件（增加失败重试，避免网络波动导致任务中断）
       - name: 下载 tv 源文件
         run: |
-          # --retry 3：失败重试3次，--retry-delay 5：每次重试间隔5秒
-          curl -f --retry 3 --retry-delay 5 -o tv_source "http://123.56.43.183/tv/m3u/tv"
+          curl -f -o tv_source "http://123.56.43.183/tv/m3u/tv"
           echo "tv 源文件下载完成，大小：$(du -h tv_source)"
-
       - name: 下载 migu_video 源文件
         run: |
-          curl -f --retry 3 --retry-delay 5 -o migu_source "https://raw.githubusercontent.com/develop202/migu_video/refs/heads/main/interface.txt"
+          curl -f -o migu_source "https://raw.githubusercontent.com/develop202/migu_video/refs/heads/main/interface.txt"
           echo "migu_video 源文件下载完成，大小：$(du -h migu_source)"
-
-      # 2. 合并源文件为临时文件
       - name: 合并两个源文件
         run: |
           cat tv_source migu_source > tv_temp
           echo "源文件合并完成，临时文件大小：$(du -h tv_temp)"
-
-      # 3. 核心清理步骤（合并重复 sed 命令，减少执行次数，提升效率）
-      - name: 清理字段（svg-id/svg-name/tvg-id/tvg-name）+ 格式优化
+      - name: 清理步骤1 - 删除 svg-id 和 svg-name 字段
         run: |
-          # 一步删除所有目标字段（匹配单/双引号格式，避免重复执行 sed）
-          sed -i -E '
-            s/(svg-id|tvg-id)=("([^"]*)"|'\''([^'\'']*)'\''))[[:space:]]*//g;  # 删除 svg-id/tvg-id（含后续空格）
-            s/(svg-name|tvg-name)=("([^"]*)"|'\''([^'\'']*)'\''))[[:space:]]*//g;  # 删除 svg-name/tvg-name（含后续空格）
-            s/  */ /g;  # 连续空格替换为单个空格
-            s/^ //;     # 删除行首空格
-            s/ $//;     # 删除行尾空格
-            /^$/d       # 去除空行
-          ' tv_temp
-
-          # 重命名为最终 tv 文件 + 输出最终文件信息
+          sed -i -E 's/(svg-id=("([^"]*)"|'\''([^'\'']*)'\''))[[:space:]]*(svg-name=("([^"]*)"|'\''([^'\'']*)'\''))//g' tv_temp
+          sed -i -E 's/(svg-id=("([^"]*)"|'\''([^'\'']*)'\''))//g' tv_temp
+          sed -i -E 's/(svg-name=("([^"]*)"|'\''([^'\'']*)'\''))//g' tv_temp
+          echo "已删除所有 svg-id 和 svg-name 字段"
+      - name: 清理步骤2 - 删除 tvg-id 字段
+        run: |
+          sed -i -E 's/(tvg-id=("([^"]*)"|'\''([^'\'']*)'\''))//g' tv_temp
+          echo "已删除所有 tvg-id 字段"
+      - name: 清理步骤3 - 删除 tvg-name 字段
+        run: |
+          sed -i -E 's/(tvg-name=("([^"]*)"|'\''([^'\'']*)'\''))//g' tv_temp
+          echo "已删除所有 tvg-name 字段"
+      - name: 清理步骤4 - 优化文本格式
+        run: |
+          sed -i -e 's/  */ /g' -e 's/^ //' -e 's/ $//' -e '/^$/d' tv_temp
           mv tv_temp tv
-          echo "格式优化完成，最终 tv 文件大小：$(du -h tv)"
-          echo "最终 tv 文件总行数：$(wc -l tv | awk '{print $1}')"  # 额外增加行数输出，方便确认处理结果
-
-      # （可选步骤）如果需要将处理后的文件推回仓库，可添加以下步骤（若不需要则删除）
-      - name: 提交并推送处理后的 tv 文件
-        run: |
-          git config --global user.name "GitHub Actions"
-          git config --global user.email "actions@github.com"
-          git add tv
-          git commit -m "Auto update merged TV file ($(date +'%Y-%m-%d %H:%M:%S'))"
-          # 注意：需确保仓库有 "workflow" 权限（仓库 -> Settings -> Actions -> General -> Workflow permissions 设为 "Read and write permissions"）
-          git push
