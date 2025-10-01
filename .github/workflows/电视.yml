@@ -1,4 +1,4 @@
-name: tv-file-merge-sync
+name: tv-file-merge-process-sync
 on:
   schedule:
     - cron: "*/15 * * * *"  # 统一每15分钟执行一次更新
@@ -13,12 +13,6 @@ jobs:
         with:
           persist-credentials: false
 
-      # 新增步骤：拉取 m3u.bat 处理脚本（从指定 GitHub 仓库获取）
-      - name: 拉取 m3u.bat 处理脚本
-        run: |
-          curl -f -o m3u.bat "https://raw.githubusercontent.com/mr-pangpang/AutoBuild/main/script/m3u.bat"
-          echo "m3u.bat 脚本下载完成，文件大小：$(du -h m3u.bat)"
-
       - name: 下载原第一个工作流的 tv 源文件
         run: |
           curl -f -o tv_source "http://123.56.43.183/tv/m3u/tv"
@@ -29,27 +23,31 @@ jobs:
           curl -f -o migu_source "https://raw.githubusercontent.com/develop202/migu_video/refs/heads/main/interface.txt"
           echo "原 migu_video 源文件下载完成，大小：$(du -h migu_source)"
 
-      - name: 合并两个源文件为临时 tv 文件
+      - name: 合并两个源文件为临时文件
         run: |
-          cat tv_source migu_source > tv_temp  # 生成临时文件，避免与处理后文件冲突
-          echo "两个源文件合并为临时文件 tv_temp，大小：$(du -h tv_temp)"
+          cat tv_source migu_source > tv_temp  # 生成临时合并文件，后续处理用
+          echo "源文件合并完成，临时文件 tv_temp 大小：$(du -h tv_temp)"
 
-      # 新增步骤：使用 WSL 执行 m3u.bat 处理临时 tv 文件（Ubuntu 环境需依赖 WSL 运行批处理）
-      - name: 安装 WSL 依赖（用于执行 Windows 批处理脚本）
+      # 关键步骤：复刻 m3u.bat 脚本的核心处理逻辑（3步处理，无需依赖 Windows 批处理）
+      - name: 处理步骤1 - 删除 tvg-id 字段
         run: |
-          sudo apt update && sudo apt install -y wslu dos2unix
-          dos2unix m3u.bat  # 转换脚本换行符为 Unix 格式，避免执行报错
-          echo "WSL 依赖安装及脚本格式转换完成"
+          # 正则匹配并删除所有 tvg-id="任意内容" 格式字段
+          sed -i 's/tvg-id="[^"]*"//g' tv_temp
+          echo "已删除所有 tvg-id 字段"
 
-      - name: 执行 m3u.bat 处理临时 tv 文件
+      - name: 处理步骤2 - 删除 tvg-name 字段
         run: |
-          # 将临时文件 tv_temp 重命名为脚本预期的 "m3u"（匹配 bat 中处理的文件名）
-          mv tv_temp m3u
-          # 通过 WSL 调用 Windows 命令行执行批处理脚本
-          wsl cmd.exe /c "m3u.bat"
-          # 脚本处理后生成 "_m3u" 文件，重命名为最终的 "tv" 文件
-          mv _m3u tv
-          echo "m3u.bat 处理完成，最终 tv 文件大小：$(du -h tv)"
+          # 正则匹配并删除所有 tvg-name="任意内容" 格式字段
+          sed -i 's/tvg-name="[^"]*"//g' tv_temp
+          echo "已删除所有 tvg-name 字段"
+
+      - name: 处理步骤3 - 清理多余空格（连续空格替换为单个空格）
+        run: |
+          # 将文件中所有连续空格（1个以上）替换为单个空格
+          sed -i 's/  */ /g' tv_temp
+          # 重命名处理后的文件为最终的 tv 文件
+          mv tv_temp tv
+          echo "已清理多余空格，最终 tv 文件大小：$(du -h tv)"
 
       - name: 检查 dpdisk/file 仓库是否存在
         id: check_repo
@@ -79,5 +77,5 @@ jobs:
           git config --global user.email "actions@github.com"
           git add tv
           CURRENT_TIME=$(date -d "+8 hours" +'%Y-%m-%d %H:%M:%S')
-          git commit -m "merge & process (m3u.bat) tv_source & migu_source to tv (15min sync) - updatetime $CURRENT_TIME" || echo "处理后的 tv 文件无变更，无需提交"
+          git commit -m "merge & process (tvg-id/tvg-name/space) to tv (15min sync) - updatetime $CURRENT_TIME" || echo "处理后的 tv 文件无变更，无需提交"
           git push https://${{ secrets.PANGPANG }}@github.com/dpdisk/file.git HEAD:main
