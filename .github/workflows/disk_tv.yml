@@ -33,7 +33,7 @@ jobs:
           cat huyta migu_sports migu_video > tv_temp
           echo "源文件合并完成，临时文件大小：$(du -h tv_temp)"
 
-      - name: 清理步骤1 - 删除 svg-id 和 svg-name 字段（匹配 "svg-id='xxx' svg-name='xxx'" 格式）
+      - name: 清理步骤1 - 删除 svg-id 和 svg-name 字段
         run: |
           sed -i -E 's/(svg-id=("([^"]*)"|'\''([^'\'']*)'\''))[[:space:]]*(svg-name=("([^"]*)"|'\''([^'\'']*)'\''))//g' tv_temp
           sed -i -E 's/(svg-id=("([^"]*)"|'\''([^'\'']*)'\''))//g' tv_temp
@@ -50,13 +50,10 @@ jobs:
           sed -i -E 's/(tvg-name=("([^"]*)"|'\''([^'\'']*)'\''))//g' tv_temp
           echo "已删除所有 tvg-name 字段"
 
-      - name: 清理步骤4 - 替换 group-title 并删除特定括号内容
+      - name: 清理步骤4 - 替换 group-title 并删除特定内容及格式优化
         run: |
-          # 1. 替换 group-title：将 "group-title="•咪咕「任意内容」"" 统一改为 "group-title="咪视界""
           sed -i 's/group-title="•咪咕「[^"]*」"/group-title="咪视界"/g' tv_temp
-          # 2. 直接删除频道名称中的「移动」「IPV4」字符（不影响其他内容）
           sed -i 's/「移动」//g; s/「IPV4」//g' tv_temp
-          # 3. 保留原有的格式优化（去多余空格、空行）
           sed -i -e 's/  */ /g' -e 's/^ //' -e 's/ $//' -e '/^$/d' tv_temp
           mv tv_temp tv
           echo "格式优化、group-title替换及括号内容删除完成，最终 tv 文件大小：$(du -h tv)"
