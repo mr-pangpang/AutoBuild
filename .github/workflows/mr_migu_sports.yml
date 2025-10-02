@@ -44,5 +44,5 @@ jobs:
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
           git add migu_sports
-          git commit -m "Safe process M3U: keep all channels & links, delete specified fields $(date +'%Y%m%d_%H%M')" || echo "无新变更，无需提交"
+          git commit -m "updatetime $(date +'%Y%m%d_%H%M')" || echo "无新变更，无需提交"
           git push || echo "推送失败！检查token是否有push权限"
