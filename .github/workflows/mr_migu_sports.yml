@@ -16,7 +16,7 @@ jobs:
       - name: 下载M3U文件（先保存原始文件，方便排查）
         run: |
           # 1. 下载原始文件（改名为original_migu.m3u，不直接修改）
-          curl -f -o original_migu.m3u "https://github.com/YanG-1989/m3u/raw/main/Migu.m3u" || { echo "链接失效！换能访问的M3U链接"; exit 1; }
+          curl -f -o original_migu.m3u "https://raw.githubusercontent.com/YanG-1989/m3u/main/Migu.m3u" || { echo "链接失效！换能访问的M3U链接"; exit 1; }
           # 2. 查看原始文件结构（确认有频道行和链接行）
           echo "原始文件核心内容（前10行）："
           head -10 original_migu.m3u
