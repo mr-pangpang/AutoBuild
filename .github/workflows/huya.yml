@@ -30,7 +30,7 @@ jobs:
         run: |
           curl -X POST -H "Authorization: token ${{ secrets.DAPANG }}" \
           -H "Content-Type: application/json" \
-          -d '{"name": "m3u", "auto_init": true}' \
+          -d '{"name": "m3u", "auto_init": false}' \
           "https://api.github.com/user/repos"
 
       - name: 克隆m3u仓库
