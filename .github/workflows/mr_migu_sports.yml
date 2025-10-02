@@ -16,7 +16,7 @@ jobs:
       - name: 从指定链接下载migu_sports（替换为你的实际M3U链接，避免404）
         run: |
           # 注意：如果原链接失效，替换成你能正常访问的M3U文件链接（如直链/仓库链接）
-          curl -f -o migu_sports "https://raw.githubusercontent.com/YanG-1989/m3u/main/Migu.m3u" || { echo "下载失败，检查链接有效性"; exit 1; }
+          curl -f -o migu_sports "https://github.com/YanG-1989/m3u/raw/main/Migu.m3u" || { echo "下载失败，检查链接有效性"; exit 1; }
           echo "下载完成，原文件行数：$(wc -l migu_sports) 行"  # 显示原文件行数，确认没下空
       # 修复核心：精准处理（只删指定字段+改group-title+清特殊字符，不删整行）
       - name: 精准处理M3U文件内容（避免删空）
