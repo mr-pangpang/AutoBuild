@@ -17,7 +17,6 @@ jobs:
         run: |
           curl -f -o original_migu.m3u "https://raw.githubusercontent.com/YanG-1989/m3u/main/Migu.m3u" || { echo "链接失效！换能访问的M3U链接"; exit 1; }
           echo "原始文件总行数：$(wc -l original_migu.m3u) 行"
-
       - name: 处理文件
         run: |
           awk '/^#EXTINF:-1/ { print $0; getline; if ($0 ~ /^http.*\.m3u8/) print $0 }' original_migu.m3u > temp_processed.m3u
@@ -32,7 +31,6 @@ jobs:
           mv temp_processed.m3u migu_sports
           echo "处理后文件总行数：$(wc -l migu_sports) 行"
           echo "处理后包含的m3u8链接数量：$(grep -c "\.m3u8" migu_sports) 个"
-
       - name: 推送处理后的文件
         run: |
           if ! git clone https://${{ secrets.DAPANG }}@github.com/mr-pangpang/m3u.git target-repo; then
@@ -45,5 +43,5 @@ jobs:
           git config --global user.email "actions@github.com"
           git add migu_sports
           CURRENT_TIME=$(date -d "+8 hours" +'%Y-%m-%d %H:%M:%S')
-          git commit -m "updatetime $CURRENT_TIME"
-          git push || echo
+          git commit -m "updatetime $CURRENT_TIME"  || echo "无新变更，无需提交"
+          git push || echo "推送失败！检查token是否有push权限"
