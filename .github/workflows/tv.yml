@@ -50,7 +50,7 @@ jobs:
           sed -i -e 's/  */ /g' -e 's/^ //' -e 's/ $//' -e '/^$/d' tv_temp
           mv tv_temp tv
           echo "格式优化完成，最终 tv 文件大小：$(du -h tv)"
-		  
+
       - name: 检查 dpdisk/file 仓库是否存在
         id: check_repo
         run: |
