@@ -8,70 +8,43 @@ jobs:
   download-merge-clean-save-tv:
     runs-on: ubuntu-latest
     steps:
-      - name: 拉取当前仓库代码
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           persist-credentials: false
 
-      - name: 下载虎牙源
-        run: |
-          curl -f -o huyta "https://raw.githubusercontent.com/mr-pangpang/m3u/refs/heads/main/huya"
-          echo "huya 源文件下载完成，大小：$(du -h huyta)"
+      - run: curl -f -o huyta "https://raw.githubusercontent.com/mr-pangpang/m3u/refs/heads/main/huya"
 
-      - name: 下载咪视界源
-        run: |
-          curl -f -o migu_sports "https://raw.githubusercontent.com/YanG-1989/m3u/refs/heads/main/Migu.m3u"
-          echo "migu_sports 源文件下载完成，大小：$(du -h migu_sports)"
+      - run: curl -f -o migu_sports "https://raw.githubusercontent.com/YanG-1989/m3u/refs/heads/main/Migu.m3u"
 
-      - name: 下载咪咕视频源
-        run: |
-          curl -f -o migu_video "https://raw.githubusercontent.com/develop202/migu_video/main/interface.txt"
-          echo "migu_video 源文件下载完成，大小：$(du -h migu_video)"
+      - run: curl -f -o migu_video "https://raw.githubusercontent.com/develop202/migu_video/main/interface.txt"
 
-      - name: 合并源文件
-        run: |
-          cat huyta migu_sports migu_video > tv_temp
-          echo "源文件合并完成，临时文件大小：$(du -h tv_temp)"
+      - run: cat huyta migu_sports migu_video > tv_temp
 
-      - name: 清理步骤1 - 删除 svg-id 和 svg-name 字段
-        run: |
+      - run: |
           sed -i -E 's/(svg-id=("([^"]*)"|'\''([^'\'']*)'\''))[[:space:]]*(svg-name=("([^"]*)"|'\''([^'\'']*)'\''))//g' tv_temp
           sed -i -E 's/(svg-id=("([^"]*)"|'\''([^'\'']*)'\''))//g' tv_temp
           sed -i -E 's/(svg-name=("([^"]*)"|'\''([^'\'']*)'\''))//g' tv_temp
-          echo "已删除所有 svg-id 和 svg-name 字段"
 
-      - name: 清理步骤2 - 删除 tvg-id 字段
-        run: |
-          sed -i -E 's/(tvg-id=("([^"]*)"|'\''([^'\'']*)'\''))//g' tv_temp
-          echo "已删除所有 tvg-id 字段"
+      - run: sed -i -E 's/(tvg-id=("([^"]*)"|'\''([^'\'']*)'\''))//g' tv_temp
 
-      - name: 清理步骤3 - 删除 tvg-name 字段
-        run: |
-          sed -i -E 's/(tvg-name=("([^"]*)"|'\''([^'\'']*)'\''))//g' tv_temp
-          echo "已删除所有 tvg-name 字段"
+      - run: sed -i -E 's/(tvg-name=("([^"]*)"|'\''([^'\'']*)'\''))//g' tv_temp
 
-      - name: 清理步骤4 - 替换 group-title 并删除特定内容及格式优化
-        run: |
+      - run: |
           sed -i 's/group-title="•咪咕「[^"]*」"/group-title="咪视界"/g' tv_temp
           sed -i 's/「移动」//g; s/「IPV4」//g' tv_temp
           sed -i -e 's/  */ /g' -e 's/^ //' -e 's/ $//' -e '/^$/d' tv_temp
           mv tv_temp tv
-          echo "格式优化、group-title替换及括号内容删除完成，最终 tv 文件大小：$(du -h tv)"
 
-      - name: 检查 dpdisk/file 仓库是否存在
-        id: check_repo
+      - id: check_repo
         run: |
           RESPONSE=$(curl -s -w "%{http_code}" -H "Authorization: token ${{ secrets.PANGPANG }}" "https://api.github.com/repos/dpdisk/file")
           HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
           echo "repo_exists=$([ "$HTTP_CODE" -eq 200 ] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
 
-      - name: 若仓库不存在则创建
-        if: steps.check_repo.outputs.repo_exists == 'false'
-        run: |
-          curl -X POST -H "Authorization: token ${{ secrets.PANGPANG }}" -H "Content-Type: application/json" -d '{"name":"file","auto_init":false,"visibility":"public"}' "https://api.github.com/user/repos"
+      - if: steps.check_repo.outputs.repo_exists == 'false'
+        run: curl -X POST -H "Authorization: token ${{ secrets.PANGPANG }}" -H "Content-Type: application/json" -d '{"name":"file","auto_init":false,"visibility":"public"}' "https://api.github.com/user/repos"
 
-      - name: 克隆仓库并推送文件
-        run: |
+      - run: |
           git clone -b main --single-branch https://${{ secrets.PANGPANG }}@github.com/dpdisk/file.git target-repo || (mkdir -p target-repo && cd target-repo && git init && git remote add origin https://${{ secrets.PANGPANG }}@github.com/dpdisk/file.git && git checkout -b main)
           mv tv target-repo/
           cd target-repo
@@ -79,5 +52,5 @@ jobs:
           git config --global user.email "actions@github.com"
           git add tv
           CURRENT_TIME=$(date -d "+8 hours" +'%Y-%m-%d %H:%M:%S')
-          git commit -m "updatetime $CURRENT_TIME" || echo "无变更无需提交"
+          git commit -m "updatetime $CURRENT_TIME" || :
           git push https://${{ secrets.PANGPANG }}@github.com/dpdisk/file.git HEAD:main
