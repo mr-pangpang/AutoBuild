@@ -39,9 +39,8 @@ jobs:
 
       - name: 移动文件到目标路径
         run: |
-          mkdir -p target-repo/m3u
-          mv huya target-repo/m3u/
-          echo "文件已移动到：target-repo/m3u/huya"
+          mv huya target-repo/
+          echo "文件已移动到：target-repo/huya"
 
       - name: 提交并推送m3u仓库变更
         run: |
