@@ -1,4 +1,4 @@
-name: tv
+name: disk_tv
 on:
   schedule:
     - cron: "*/15 * * * *"
@@ -15,12 +15,12 @@ jobs:
 
       - name: 下载 huya 源文件
         run: |
-          curl -f -o huyta "http://123.56.43.183/tv/m3u/huya"
+          curl -f -o huyta "https://github.com/mr-pangpang/m3u/raw/main/huya"
           echo "huya 源文件下载完成，大小：$(du -h huyta)"
 
       - name: 下载 migu_video 源文件
         run: |
-          curl -f -o migu_video "https://raw.githubusercontent.com/develop202/migu_video/refs/heads/main/interface.txt"
+          curl -f -o migu_video "https://github.com/develop202/migu_video/raw/main/interface.txt"
           echo "migu_video 源文件下载完成，大小：$(du -h migu_video)"
 
       - name: 合并源文件
