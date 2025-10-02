@@ -50,17 +50,16 @@ jobs:
           sed -i -E 's/(tvg-name=("([^"]*)"|'\''([^'\'']*)'\''))//g' tv_temp
           echo "已删除所有 tvg-name 字段"
 
-- name: 清理步骤4 - 替换 group-title 并删除特定括号内容
-  run: |
-    # 1. 替换 group-title：匹配 "group-title="•咪咕「任意内容」"" 格式，直接改为 "咪视界"（避开特殊字符匹配）
-    sed -i 's/group-title="•咪咕「[^"]*」"/group-title="咪视界"/g' tv_temp
-    # 2. 删除频道名称中的「移动」「IPV4」：用简单字符匹配（不涉及特殊符号编码）
-    sed -i 's/「移动」//g; s/「IPV4」//g' tv_temp
-    # 3. 保留原有的格式优化（去多余空格、空行）
-    sed -i -e 's/  */ /g' -e 's/^ //' -e 's/ $//' -e '/^$/d' tv_temp
-    mv tv_temp tv
-    echo "格式优化、group-title替换及括号内容删除完成，最终 tv 文件大小：$(du -h tv)"
-
+      - name: 清理步骤4 - 替换 group-title 并删除特定括号内容
+        run: |
+          # 1. 替换 group-title：将 "group-title="•咪咕「任意内容」"" 统一改为 "group-title="咪视界""
+          sed -i 's/group-title="•咪咕「[^"]*」"/group-title="咪视界"/g' tv_temp
+          # 2. 直接删除频道名称中的「移动」「IPV4」字符（不影响其他内容）
+          sed -i 's/「移动」//g; s/「IPV4」//g' tv_temp
+          # 3. 保留原有的格式优化（去多余空格、空行）
+          sed -i -e 's/  */ /g' -e 's/^ //' -e 's/ $//' -e '/^$/d' tv_temp
+          mv tv_temp tv
+          echo "格式优化、group-title替换及括号内容删除完成，最终 tv 文件大小：$(du -h tv)"
 
       - name: 检查 dpdisk/file 仓库是否存在
         id: check_repo
