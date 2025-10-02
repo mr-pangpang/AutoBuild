@@ -13,49 +13,42 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: 从指定链接下载migu_sports
+      - name: 从指定链接下载migu_sports（替换为你的实际M3U链接，避免404）
         run: |
-          curl -f -o migu_sports "https://raw.githubusercontent.com/YanG-1989/m3u/main/Migu.m3u"
-          echo "下载完成，文件大小：$(du -h migu_sports)"
-      # 新增：批量处理M3U文件内容（删除指定字段+修改group-title+删除括号内容）
-      - name: 批量处理M3U文件内容
+          # 注意：如果原链接失效，替换成你能正常访问的M3U文件链接（如直链/仓库链接）
+          curl -f -o migu_sports "https://raw.githubusercontent.com/YanG-1989/m3u/main/Migu.m3u" || { echo "下载失败，检查链接有效性"; exit 1; }
+          echo "下载完成，原文件行数：$(wc -l migu_sports) 行"  # 显示原文件行数，确认没下空
+      # 修复核心：精准处理（只删指定字段+改group-title+清特殊字符，不删整行）
+      - name: 精准处理M3U文件内容（避免删空）
         run: |
-          # 1. 删除所有包含 tvg-id="咪咕体育" 或 tvg-name="咪咕体育" 的内容（整段匹配删除）
-          # 2. 将 group-title="•咪咕「移动」" 或 group-title="•咪咕「网·Ⅰ」" 统一改为 group-title="咪视界"
-          # 3. 删除频道名称中的 「移动」「IPV4」 字符
           sed -i -E '
-            /tvg-id="咪咕体育"|tvg-name="咪咕体育"/d;  # 删除含指定tvg字段的行
-            s/group-title="•咪咕「(移动|网·Ⅰ)」"/group-title="咪视界"/g;  # 统一修改group-title
-            s/「移动」//g; s/「IPV4」//g  # 删除频道名称中的目标字符
+            # 1. 只删除 "tvg-id=\"咪咕体育\" " 或 "tvg-name=\"咪咕体育\" "（末尾空格保留，避免字段粘连）
+            s/tvg-id="咪咕体育" //g;
+            s/tvg-name="咪咕体育" //g;
+            # 2. 统一修改group-title为"咪视界"
+            s/group-title="•咪咕「(移动|网·Ⅰ)」"/group-title="咪视界"/g;
+            # 3. 删除频道名中的「移动」「IPV4」
+            s/「移动」//g;
+            s/「IPV4」//g
           ' migu_sports
-          echo "文件内容处理完成，处理后前10行预览："
-          head -10 migu_sports  # 预览处理结果（可选，可删除）
-      - name: 检查m3u仓库是否存在
-        id: check_repo
+          
+          # 验证处理结果：显示处理后的行数和前5行，确认内容非空
+          echo "处理后文件行数：$(wc -l migu_sports) 行"
+          echo "处理后内容预览（前5行）："
+          head -5 migu_sports
+      - name: 检查目标仓库并克隆（同前，确保仓库可访问）
         run: |
-          RESPONSE=$(curl -s -w "%{http_code}" -H "Authorization: token ${{ secrets.DAPANG }}" "https://api.github.com/repos/mr-pangpang/m3u")
-          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
-          echo "repo_exists=$([ "$HTTP_CODE" -eq 200 ] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
-      - name: 若仓库不存在则创建
-        if: steps.check_repo.outputs.repo_exists == 'false'
-        run: |
-          curl -X POST -H "Authorization: token ${{ secrets.DAPANG }}" \
-          -H "Content-Type: application/json" \
-          -d '{"name": "m3u", "auto_init": false}' \
-          "https://api.github.com/user/repos"
-      - name: 克隆m3u仓库
-        run: |
-          git clone https://${{ secrets.DAPANG }}@github.com/mr-pangpang/m3u.git target-repo
-      - name: 移动处理后的文件到目标路径
+          if ! git clone https://${{ secrets.DAPANG }}@github.com/mr-pangpang/m3u.git target-repo; then
+            echo "克隆失败，检查token权限或仓库地址"
+            exit 1
+          fi
+      - name: 移动并推送处理后的文件
         run: |
           mv migu_sports target-repo/
-          echo "处理后的文件已移动到：target-repo/migu_sports"
-      - name: 提交并推送m3u仓库变更
-        run: |
           cd target-repo
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
           git add migu_sports
-          CURRENT_TIME=$(date -d "+8 hours" +'%Y-%m-%d %H:%M:%S')  # 时区调整（+8小时为北京时间）
-          git commit -m "updatetime $CURRENT_TIME (processed M3U content)" || echo "无文件变更，无需提交"  # 提交信息增加“处理标记”
-          git push https://${{ secrets.DAPANG }}@github.com/mr-pangpang/m3u.git HEAD:main
+          CURRENT_TIME=$(date -d "+8 hours" +'%Y-%m-%d %H:%M:%S')
+          git commit -m "updatetime $CURRENT_TIME (fixed empty content)" || echo "无变更无需提交"
+          git push || echo "推送失败，检查token权限"
