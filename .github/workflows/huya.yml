@@ -47,6 +47,7 @@ jobs:
           cd target-repo
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
+          git add huya
           CURRENT_TIME=$(date -d "+8 hours" +'%Y-%m-%d %H:%M:%S')
           git commit -m "updatetime $CURRENT_TIME" || echo "无文件变更，无需提交"
           git push https://${{ secrets.DAPANG }}@github.com/mr-pangpang/m3u.git HEAD:main
