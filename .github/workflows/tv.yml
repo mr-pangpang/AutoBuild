@@ -1,8 +1,8 @@
 name: tv
 on:
   schedule:
-    - cron: "*/15 * * * *"  # 统一每15分钟更新一次
-  workflow_dispatch:  # 保留手动触发功能
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
 
 jobs:
   download-merge-clean-save-tv:
@@ -13,56 +13,56 @@ jobs:
         with:
           persist-credentials: false
 
-      # 1. 下载两个源文件
       - name: 下载 tv 源文件
         run: |
           curl -f -o tv_source "http://123.56.43.183/tv/m3u/tv"
           echo "tv 源文件下载完成，大小：$(du -h tv_source)"
+
       - name: 下载 migu_video 源文件
         run: |
           curl -f -o migu_source "https://raw.githubusercontent.com/develop202/migu_video/refs/heads/main/interface.txt"
           echo "migu_video 源文件下载完成，大小：$(du -h migu_source)"
-      # 2. 合并源文件为临时文件
+
       - name: 合并两个源文件
         run: |
           cat tv_source migu_source > tv_temp
           echo "源文件合并完成，临时文件大小：$(du -h tv_temp)"
-      # 3. 核心清理步骤：按要求删除指定内容 + 原 tvg-id/tvg-name 清理
+
       - name: 清理步骤1 - 删除 svg-id 和 svg-name 字段（匹配 "svg-id='xxx' svg-name='xxx'" 格式）
         run: |
-          # 正则匹配并删除 "svg-id=\"任意内容\" svg-name=\"任意内容\"" 或单引号格式，确保完整删除
           sed -i -E 's/(svg-id=("([^"]*)"|'\''([^'\'']*)'\''))[[:space:]]*(svg-name=("([^"]*)"|'\''([^'\'']*)'\''))//g' tv_temp
-          # 单独处理仅存在 svg-id 或 svg-name 的情况（避免遗漏）
           sed -i -E 's/(svg-id=("([^"]*)"|'\''([^'\'']*)'\''))//g' tv_temp
           sed -i -E 's/(svg-name=("([^"]*)"|'\''([^'\'']*)'\''))//g' tv_temp
           echo "已删除所有 svg-id 和 svg-name 字段"
+
       - name: 清理步骤2 - 删除 tvg-id 字段
         run: |
           sed -i -E 's/(tvg-id=("([^"]*)"|'\''([^'\'']*)'\''))//g' tv_temp
           echo "已删除所有 tvg-id 字段"
+
       - name: 清理步骤3 - 删除 tvg-name 字段
         run: |
           sed -i -E 's/(tvg-name=("([^"]*)"|'\''([^'\'']*)'\''))//g' tv_temp
           echo "已删除所有 tvg-name 字段"
-      # 4. 优化格式：清理残留空格和空行
+
       - name: 清理步骤4 - 优化文本格式
         run: |
-          # 连续空格替换为单个空格，删除行首尾空格，去除空行
           sed -i -e 's/  */ /g' -e 's/^ //' -e 's/ $//' -e '/^$/d' tv_temp
-          # 重命名为最终 tv 文件
           mv tv_temp tv
           echo "格式优化完成，最终 tv 文件大小：$(du -h tv)"
-      # 5. 推送至第二仓库（dpdisk/file）
+		  
       - name: 检查 dpdisk/file 仓库是否存在
         id: check_repo
         run: |
           RESPONSE=$(curl -s -w "%{http_code}" -H "Authorization: token ${{ secrets.PANGPANG }}" "https://api.github.com/repos/dpdisk/file")
           HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
           echo "repo_exists=$([ "$HTTP_CODE" -eq 200 ] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
+
       - name: 若仓库不存在则创建
         if: steps.check_repo.outputs.repo_exists == 'false'
         run: |
           curl -X POST -H "Authorization: token ${{ secrets.PANGPANG }}" -H "Content-Type: application/json" -d '{"name":"file","auto_init":false,"visibility":"public"}' "https://api.github.com/user/repos"
+
       - name: 克隆仓库并推送文件
         run: |
           git clone -b main --single-branch https://${{ secrets.PANGPANG }}@github.com/dpdisk/file.git target-repo || (mkdir -p target-repo && cd target-repo && git init && git remote add origin https://${{ secrets.PANGPANG }}@github.com/dpdisk/file.git && git checkout -b main)
