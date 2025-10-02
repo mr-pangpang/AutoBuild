@@ -1,57 +1,74 @@
 name: mr_migu_sports
 on:
+  workflow_dispatch:  # 手动触发（方便测试，避免自动执行出问题）
   schedule:
-    - cron: "0 */2 * * *"  # 每2小时执行一次
-  workflow_dispatch:  # 允许手动触发
+    - cron: "0 */2 * * *"
 
 jobs:
-  download-and-save:
+  process-m3u-safely:
     runs-on: ubuntu-latest
     steps:
-      - name: 拉取当前仓库代码
+      - name: 拉取基础代码
         uses: actions/checkout@v4
         with:
           persist-credentials: false
 
-      - name: 从指定链接下载migu_sports（替换为你的实际M3U链接，避免404）
+      - name: 下载M3U文件（先保存原始文件，方便排查）
         run: |
-          # 注意：如果原链接失效，替换成你能正常访问的M3U文件链接（如直链/仓库链接）
-          curl -f -o migu_sports "https://github.com/YanG-1989/m3u/raw/main/Migu.m3u" || { echo "下载失败，检查链接有效性"; exit 1; }
-          echo "下载完成，原文件行数：$(wc -l migu_sports) 行"  # 显示原文件行数，确认没下空
+          # 1. 下载原始文件（改名为original_migu.m3u，不直接修改）
+          curl -f -o original_migu.m3u "https://github.com/YanG-1989/m3u/raw/main/Migu.m3u" || { echo "链接失效！换能访问的M3U链接"; exit 1; }
+          # 2. 查看原始文件结构（确认有频道行和链接行）
+          echo "原始文件核心内容（前10行）："
+          head -10 original_migu.m3u
+          echo "原始文件总行数：$(wc -l original_migu.m3u) 行"
 
-      # 修复核心：精准处理（只删指定字段+改group-title+清特殊字符，不删整行）
-      - name: 精准处理M3U文件内容（避免删空）
+      - name: 安全处理M3U（只保留核心内容+精准删指定字段）
         run: |
+          # 关键逻辑：先提取 M3U 必须的内容（#EXTINF开头行 + 紧跟的m3u8链接行），再处理字段
+          # 1. 提取有效内容到临时文件（确保只保留频道行和链接行，过滤空行/无效行）
+          awk '
+            /^#EXTINF:-1/ { print $0; getline; if ($0 ~ /^http.*\.m3u8/) print $0 }
+          ' original_migu.m3u > temp_processed.m3u
+
+          # 2. 只处理临时文件中的指定内容（不删行，只替换/删除字段）
           sed -i -E '
-            # 1. 只删除 "tvg-id=\"咪咕体育\" " 或 "tvg-name=\"咪咕体育\" "（末尾空格保留，避免字段粘连）
+            # ① 只删除 "tvg-id=\"咪咕体育\" " 和 "tvg-name=\"咪咕体育\" "（末尾空格保留，避免字段粘在一起）
             s/tvg-id="咪咕体育" //g;
             s/tvg-name="咪咕体育" //g;
-            # 2. 统一修改group-title为"咪视界"
+            # ② 改group-title为"咪视界"
             s/group-title="•咪咕「(移动|网·Ⅰ)」"/group-title="咪视界"/g;
-            # 3. 删除频道名中的「移动」「IPV4」
+            # ③ 删频道名里的「移动」「IPV4」
             s/「移动」//g;
-            s/「IPV4」//g
-          ' migu_sports
-          
-          # 验证处理结果：显示处理后的行数和前5行，确认内容非空
-          echo "处理后文件行数：$(wc -l migu_sports) 行"
-          echo "处理后内容预览（前5行）："
-          head -5 migu_sports
+            s/「IPV4」//g;
+            # ④ 最后清理可能的多余空格（比如删字段后留的空，不影响使用）
+            s/  +/ /g
+          ' temp_processed.m3u
 
-      - name: 检查目标仓库并克隆（同前，确保仓库可访问）
+          # 3. 把处理好的内容保存为最终文件（migu_sports）
+          mv temp_processed.m3u migu_sports
+
+          # 验证结果（让你清楚看到没删空）
+          echo -e "\n处理后文件核心内容（前10行）："
+          head -10 migu_sports
+          echo "处理后文件总行数：$(wc -l migu_sports) 行"
+          # 额外确认：检查是否有m3u8链接（确保链接没被删）
+          echo "处理后包含的m3u8链接数量：$(grep -c "\.m3u8" migu_sports) 个"
+
+      - name: 推送处理后的文件（只推最终可用的文件）
         run: |
+          # 克隆目标仓库
           if ! git clone https://${{ secrets.DAPANG }}@github.com/mr-pangpang/m3u.git target-repo; then
-            echo "克隆失败，检查token权限或仓库地址"
+            echo "仓库克隆失败！检查token权限/仓库地址"
             exit 1
           fi
-
-      - name: 移动并推送处理后的文件
-        run: |
+          # 移动最终文件
           mv migu_sports target-repo/
           cd target-repo
+          # 提交（只提交处理好的文件，保留原始文件方便对比）
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
           git add migu_sports
-          CURRENT_TIME=$(date -d "+8 hours" +'%Y-%m-%d %H:%M:%S')
-          git commit -m "updatetime $CURRENT_TIME (fixed empty content)" || echo "无变更无需提交"
-          git push || echo "推送失败，检查token权限"
+          # 提交信息里加“安全处理”标记，方便识别
+          git commit -m "Safe process M3U: keep all channels & links, delete specified fields $(date +'%Y%m%d_%H%M')" || echo "无新变更，无需提交"
+          # 推送（失败会提示，不中断流程）
+          git push || echo "推送失败！检查token是否有push权限"
