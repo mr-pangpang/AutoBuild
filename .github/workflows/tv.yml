@@ -13,19 +13,19 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: 下载 tv 源文件
+      - name: 下载 huya 源文件
         run: |
-          curl -f -o tv_source "http://123.56.43.183/tv/m3u/tv"
-          echo "tv 源文件下载完成，大小：$(du -h tv_source)"
+          curl -f -o huyta "http://123.56.43.183/tv/m3u/huya"
+          echo "huya 源文件下载完成，大小：$(du -h huyta)"
 
       - name: 下载 migu_video 源文件
         run: |
-          curl -f -o migu_source "https://raw.githubusercontent.com/develop202/migu_video/refs/heads/main/interface.txt"
-          echo "migu_video 源文件下载完成，大小：$(du -h migu_source)"
+          curl -f -o migu_video "https://raw.githubusercontent.com/develop202/migu_video/refs/heads/main/interface.txt"
+          echo "migu_video 源文件下载完成，大小：$(du -h migu_video)"
 
-      - name: 合并两个源文件
+      - name: 合并源文件
         run: |
-          cat tv_source migu_source > tv_temp
+          cat huyta migu_video > tv_temp
           echo "源文件合并完成，临时文件大小：$(du -h tv_temp)"
 
       - name: 清理步骤1 - 删除 svg-id 和 svg-name 字段（匹配 "svg-id='xxx' svg-name='xxx'" 格式）
