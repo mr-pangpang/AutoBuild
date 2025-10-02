@@ -1,4 +1,4 @@
-name: huya
+name: mr_huya
 on:
   schedule:
     - cron: "0 */2 * * *"
