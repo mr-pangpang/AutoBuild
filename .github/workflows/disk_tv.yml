@@ -13,19 +13,24 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: 下载虎牙源文件
+      - name: 下载虎牙源
         run: |
           curl -f -o huyta "https://raw.githubusercontent.com/mr-pangpang/m3u/refs/heads/main/huya"
           echo "huya 源文件下载完成，大小：$(du -h huyta)"
 
-      - name: 下载咪咕视频源文件
+      - name: 下载咪视界源
+        run: |
+          curl -f -o migu_sports "https://raw.githubusercontent.com/YanG-1989/m3u/refs/heads/main/Migu.m3u"
+          echo "migu_sports 源文件下载完成，大小：$(du -h migu_sports)"
+
+      - name: 下载咪咕视频源
         run: |
           curl -f -o migu_video "https://raw.githubusercontent.com/develop202/migu_video/main/interface.txt"
           echo "migu_video 源文件下载完成，大小：$(du -h migu_video)"
 
       - name: 合并源文件
         run: |
-          cat huyta migu_video > tv_temp
+          cat huyta migu_sports migu_video > tv_temp
           echo "源文件合并完成，临时文件大小：$(du -h tv_temp)"
 
       - name: 清理步骤1 - 删除 svg-id 和 svg-name 字段（匹配 "svg-id='xxx' svg-name='xxx'" 格式）
