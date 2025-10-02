@@ -1,4 +1,4 @@
-name: TVBox
+name: disk_TVBox
 on:
   schedule:
     - cron: "0 0 * * *"
