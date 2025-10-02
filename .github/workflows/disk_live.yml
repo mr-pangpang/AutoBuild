@@ -1,4 +1,4 @@
-name: live
+name: disk_live
 on:
   schedule:
     - cron: "0 */2 * * *"
