@@ -37,5 +37,5 @@ jobs:
           git config --global user.email "actions@github.com"
           git add tvbox.apk
           CURRENT_TIME=$(date -d "+8 hours" +'%Y-%m-%d %H:%M:%S')
-          git commit -m "updatetime $CURRENT_TIME" || echo true
+          git commit -m "updatetime $CURRENT_TIME" || true
           git push https://${{ secrets.PANGPANG }}@github.com/dpdisk/m3u.git HEAD:main
