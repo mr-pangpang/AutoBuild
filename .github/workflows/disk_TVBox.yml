@@ -13,7 +13,7 @@ jobs:
           persist-credentials: false
 
       - run: |
-          curl -f -o TVBox.apk "http://123.56.43.183/tv/tvbox.apk"
+          curl -f -o tvbox.apk "http://123.56.43.183/tv/tvbox.apk"
 
       - id: check_repo
         run: |
@@ -29,7 +29,7 @@ jobs:
           git clone -b main --single-branch https://${{ secrets.PANGPANG }}@github.com/dpdisk/m3u.git target-repo || (mkdir -p target-repo && cd target-repo && git init && git remote add origin https://${{ secrets.PANGPANG }}@github.com/dpdisk/m3u.git && git checkout -b main)
 
       - run: |
-          mv TVBox.apk target-repo/
+          mv tvbox.apk target-repo/
 
       - run: |
           cd target-repo
