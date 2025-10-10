@@ -13,7 +13,7 @@ jobs:
           persist-credentials: false
 
       - run: |
-          curl -f -o version "http://123.56.43.183/apk/version"
+          curl -f -o version.json "http://123.56.43.183/apk/version.json"
 
       - id: check_repo
         run: |
@@ -29,7 +29,7 @@ jobs:
           git clone -b main --single-branch https://${{ secrets.PANGPANG }}@github.com/dpdisk/m3u.git target-repo || (mkdir -p target-repo && cd target-repo && git init && git remote add origin https://${{ secrets.PANGPANG }}@github.com/dpdisk/m3u.git && git checkout -b main)
 
       - run: |
-          mv version target-repo/version.json
+          mv version.json target-repo/
 
       - run: |
           cd target-repo
