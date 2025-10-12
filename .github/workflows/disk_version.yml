@@ -13,7 +13,7 @@ jobs:
           persist-credentials: false
 
       - run: |
-          curl -f -o version.json "http://123.56.43.183/apk/version.json"
+          curl -f -o version.json "http://123.56.43.183:7070/d/D%3A/Administrator/Desktop/shared/TV/apk/version.json"
 
       - id: check_repo
         run: |
