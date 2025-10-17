@@ -1,63 +1,164 @@
-name: Build and Auto Release
+name: Build FongMi TV APK
 
 on:
+  push:
+    branches: [ main, master ]
   schedule:
-    - cron: '0 2 * * *'
-  workflow_dispatch:
+    - cron: '0 2 * * *'  # 每天凌晨2点自动构建
+  workflow_dispatch:       # 允许手动触发
+    inputs:
+      version:
+        description: '构建版本'
+        required: false
+        default: 'auto'
+
+env:
+  GRADLE_OPTS: "-Dorg.gradle.daemon=false"
 
 jobs:
-  build-and-release:
+  build:
     runs-on: ubuntu-latest
     permissions:
-      contents: write  # 添加这个权限
+      contents: write
     
     steps:
-    - name: Checkout FongMi/TV code
-      uses: actions/checkout@v4
-      with:
-        repository: FongMi/tv
+    # 步骤1: 下载源代码
+    - name: Download FongMi TV Source Code
+      run: |
+        echo "正在下载 FongMi/TV 源代码..."
+        wget https://github.com/FongMi/tv/archive/refs/heads/main.zip -O source.zip
+        unzip -q source.zip
+        mv tv-main/* ./
+        mv tv-main/.* ./ || true
+        ls -la
 
+    # 步骤2: 设置Java环境
     - name: Set up JDK 17
       uses: actions/setup-java@v4
       with:
         java-version: '17'
         distribution: 'temurin'
 
+    # 步骤3: 设置Android SDK
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
 
-    - name: Build APK
+    # 步骤4: 设置Gradle缓存
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@v3
+      with:
+        gradle-version: '8.4'
+
+    # 步骤5: 授予执行权限
+    - name: Make gradlew executable
       run: |
         chmod +x ./gradlew
-        ./gradlew assembleRelease
+        ls -la gradlew
 
-    - name: Get version info
-      id: version
+    # 步骤6: 检查项目结构
+    - name: Check project structure
       run: |
-        BUILD_DATE=$(date +'%Y-%m-%d')
-        BUILD_TIME=$(date +'%H%M')
-        echo "BUILD_DATE=$BUILD_DATE" >> $GITHUB_ENV
-        echo "BUILD_TIME=$BUILD_TIME" >> $GITHUB_ENV
-        echo "tag=nightly-$BUILD_DATE-$BUILD_TIME" >> $GITHUB_OUTPUT
+        echo "项目结构:"
+        find . -name "*.gradle" -type f | head -10
+        find . -name "gradlew" -type f
+        echo "App模块:"
+        find . -name "AndroidManifest.xml" -type f | head -5
 
-    - name: Create GitHub Release
-      uses: ncipollo/release-action@v1
+    # 步骤7: 构建APK
+    - name: Build Release APK
+      run: |
+        echo "开始构建APK..."
+        ./gradlew clean
+        ./gradlew assembleRelease --no-daemon --stacktrace
+        echo "构建完成!"
+
+    # 步骤8: 查找生成的APK文件
+    - name: Find APK files
+      run: |
+        echo "查找APK文件..."
+        find . -name "*.apk" -type f | while read file; do
+          echo "找到APK: $file"
+          ls -la "$file"
+        done
+        
+        # 检查常见的APK输出路径
+        echo "检查标准输出目录:"
+        if [ -d "app/build/outputs/apk" ]; then
+          find app/build/outputs/apk -name "*.apk" -type f
+          ls -la app/build/outputs/apk/ || true
+          ls -la app/build/outputs/apk/release/ || true
+        fi
+        
+        if [ -d "build/outputs/apk" ]; then
+          find build/outputs/apk -name "*.apk" -type f
+        fi
+
+    # 步骤9: 准备构建信息
+    - name: Setup build info
+      id: build_info
+      run: |
+        BUILD_DATE=$(date +'%Y-%m-%d-%H%M')
+        echo "build_date=$BUILD_DATE" >> $GITHUB_OUTPUT
+        
+        # 检查APK文件
+        if [ -f "app/build/outputs/apk/release/app-release.apk" ]; then
+          APK_PATH="app/build/outputs/apk/release/app-release.apk"
+        elif [ -f "app/build/outputs/apk/release/app-armeabi-v7a-release.apk" ]; then
+          APK_PATH="app/build/outputs/apk/release/app-armeabi-v7a-release.apk"
+        else
+          # 查找第一个APK文件
+          APK_PATH=$(find . -name "*.apk" -type f | head -1)
+        fi
+        
+        if [ -n "$APK_PATH" ]; then
+          echo "apk_path=$APK_PATH" >> $GITHUB_OUTPUT
+          echo "APK文件路径: $APK_PATH"
+          ls -la "$APK_PATH"
+        else
+          echo "未找到APK文件"
+          exit 1
+        fi
+
+    # 步骤10: 上传APK到Artifacts
+    - name: Upload APK to Artifacts
+      uses: actions/upload-artifact@v4
       with:
-        tag: ${{ steps.version.outputs.tag }}
-        name: "FongMi TV Nightly ${{ env.BUILD_DATE }}"
+        name: FongMi-TV-${{ steps.build_info.outputs.build_date }}
+        path: ${{ steps.build_info.outputs.apk_path }}
+        retention-days: 90
+
+    # 步骤11: 创建GitHub Release (仅手动触发时)
+    - name: Create GitHub Release
+      if: github.event_name == 'workflow_dispatch'
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: build-${{ steps.build_info.outputs.build_date }}
+        name: FongMi TV Build ${{ steps.build_info.outputs.build_date }}
         body: |
-          ### 自动夜间构建
-
-          **构建信息**
-          - 构建日期: ${{ env.BUILD_DATE }}
-          - 构建时间: ${{ env.BUILD_TIME }}
-          - 源仓库: [FongMi/tv](https://github.com/FongMi/tv)
-
-          **下载说明**
-          点击下方的 APK 文件下载安装
-
-          > ⚠️ 注意：此为自动构建版本，稳定性请自行测试
-        artifacts: "app/build/outputs/apk/release/*.apk"
+          🚀 自动构建的 FongMi TV APK
+          
+          **构建信息:**
+          - 源项目: [FongMi/tv](https://github.com/FongMi/tv)
+          - 构建时间: ${{ steps.build_info.outputs.build_date }}
+          - 触发方式: ${{ github.event_name }}
+          
+          **使用说明:**
+          1. 下载APK文件到Android TV设备
+          2. 安装并运行
+          3. 享受观影体验!
+          
+          > 此版本为自动构建，如有问题请参考原项目。
+        files: ${{ steps.build_info.outputs.apk_path }}
         draft: false
-        prerelease: true
-        token: ${{ secrets.GITHUB_TOKEN }}
+        prerelease: false
+
+    # 步骤12: 构建成功通知
+    - name: Build Success
+      if: success()
+      run: |
+        echo "🎉 APK构建成功!"
+        echo "📱 APK文件: ${{ steps.build_info.outputs.apk_path }}"
+        echo "📦 已上传到Artifacts: FongMi-TV-${{ steps.build_info.outputs.build_date }}"
+        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          echo "🚀 已创建Release: build-${{ steps.build_info.outputs.build_date }}"
+        fi
