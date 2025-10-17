@@ -1,14 +1,12 @@
-name: Build and Release FongMi TV
+name: Build and Auto Release
 
 on:
-  push:
-    branches: [ main, master ]
   schedule:
-    - cron: '0 2 * * *'  # 每天凌晨2点自动构建
-  workflow_dispatch:       # 手动触发
+    - cron: '0 2 * * *'  # 每天凌晨2点
+  workflow_dispatch:
 
 jobs:
-  build:
+  build-and-release:
     runs-on: ubuntu-latest
     
     steps:
@@ -27,50 +25,39 @@ jobs:
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
 
-    - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v3
-
-    - name: Make gradlew executable
-      run: chmod +x ./gradlew
-
     - name: Build APK
-      run: ./gradlew assembleRelease
-
-    - name: Get build info
-      id: build_info
       run: |
-        echo "date=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
-        echo "time=$(date +'%H:%M:%S')" >> $GITHUB_OUTPUT
-        echo "version=$(date +'%Y%m%d')" >> $GITHUB_OUTPUT
+        chmod +x ./gradlew
+        ./gradlew assembleRelease
 
-    - name: Upload APK artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: FongMi-TV-${{ steps.build_info.outputs.date }}
-        path: app/build/outputs/apk/release/*.apk
-        retention-days: 90
+    - name: Get version info
+      id: version
+      run: |
+        BUILD_DATE=$(date +'%Y-%m-%d')
+        BUILD_TIME=$(date +'%H%M')
+        echo "BUILD_DATE=$BUILD_DATE" >> $GITHUB_ENV
+        echo "BUILD_TIME=$BUILD_TIME" >> $GITHUB_ENV
+        echo "tag=$BUILD_DATE-$BUILD_TIME" >> $GITHUB_OUTPUT
 
-    - name: Upload APK to Release
-      uses: softprops/action-gh-release@v1
-      if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+    - name: Create GitHub Release
+      uses: ncipollo/release-action@v1
       with:
-        tag_name: nightly-${{ steps.build_info.outputs.date }}
-        name: FongMi TV Nightly Build ${{ steps.build_info.outputs.date }}
+        tag: ${{ steps.version.outputs.tag }}
+        name: "FongMi TV Build ${{ env.BUILD_DATE }}"
         body: |
-          🚀 自动构建的 FongMi TV APK
+          ### 自动夜间构建
 
-          **构建信息:**
-          - 源项目: [FongMi/tv](https://github.com/FongMi/tv)
-          - 构建日期: ${{ steps.build_info.outputs.date }}
-          - 构建时间: ${{ steps.build_info.outputs.time }}
-          - 触发方式: ${{ github.event_name }}
+          **构建信息**
+          - 构建日期: ${{ env.BUILD_DATE }}
+          - 构建时间: ${{ env.BUILD_TIME }}
+          - 源仓库: [FongMi/tv](https://github.com/FongMi/tv)
 
-          **使用说明:**
-          1. 下载 APK 文件到您的 Android TV 或盒子
-          2. 通过文件管理器安装
-          3. 如有问题，请参考原项目文档
+          **下载说明**
+          点击下方的 APK 文件下载安装
 
-          ⚠️ 此为自动构建版本，非官方发布
+          > ⚠️ 注意：此为自动构建版本，稳定性请自行测试
+        artifacts: "app/build/outputs/apk/release/*.apk"
+        artifactContentType: application/vnd.android.package-archive
         draft: false
         prerelease: true
-        files: app/build/outputs/apk/release/*.apk
+        token: ${{ secrets.GITHUB_TOKEN }}
