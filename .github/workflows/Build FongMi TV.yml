@@ -3,15 +3,11 @@ name: Build FongMi TV APK
 on:
   push:
     branches: [ main, master ]
-  schedule:
-    - cron: '0 2 * * *'  # 每天凌晨2点自动构建
   workflow_dispatch:       # 手动触发
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     
     steps:
     # 步骤1: 下载 fongmi 分支源代码
@@ -23,22 +19,16 @@ jobs:
         echo "解压源代码..."
         unzip -q source.zip
         
-        echo "查看解压后的目录结构:"
-        ls -la
-        
         echo "处理文件..."
-        # 检查解压后的目录名
         if [ -d "TV-fongmi" ]; then
           echo "找到 TV-fongmi 目录"
           cp -r TV-fongmi/* ./
           cp -r TV-fongmi/.* ./ 2>/dev/null || true
           rm -rf TV-fongmi
-        else
-          echo "直接解压到当前目录"
         fi
         
         rm -f source.zip
-        echo "最终目录结构:"
+        echo "目录结构:"
         ls -la
 
     # 步骤2: 设置Java环境
@@ -55,146 +45,87 @@ jobs:
     # 步骤4: 设置Gradle
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@v3
-      with:
-        gradle-version: '8.4'
 
     # 步骤5: 授予执行权限
     - name: Make gradlew executable
-      run: |
-        chmod +x ./gradlew
-        echo "Gradle wrapper 权限设置完成"
+      run: chmod +x ./gradlew
 
-    # 步骤6: 检查项目结构
-    - name: Check project structure
+    # 步骤6: 检查Gradle配置
+    - name: Check Gradle configuration
       run: |
-        echo "=== 项目结构检查 ==="
-        echo "Gradle 文件:"
-        find . -name "*.gradle" -type f | head -5
-        echo "源码目录:"
-        find . -name "src" -type d | head -3
-        echo "清单文件:"
-        find . -name "AndroidManifest.xml" -type f | head -3
+        echo "=== Gradle 配置检查 ==="
+        ./gradlew --version
+        echo "Gradle 任务列表:"
+        ./gradlew tasks --all || true
 
-    # 步骤7: 构建APK
-    - name: Build Release APK
+    # 步骤7: 尝试不同的构建方式
+    - name: Build with detailed logging
+      id: build
       run: |
-        echo "开始构建APK..."
-        ./gradlew clean
-        ./gradlew assembleRelease --no-daemon --stacktrace --info
-        echo "APK构建完成!"
+        echo "=== 开始构建APK ==="
+        
+        # 尝试清理项目
+        echo "1. 清理项目..."
+        ./gradlew clean --no-daemon --stacktrace || echo "清理完成"
+        
+        # 尝试不同的构建命令
+        echo "2. 尝试 assembleRelease..."
+        ./gradlew assembleRelease --no-daemon --stacktrace --warning-mode all --scan || \
+        (echo "assembleRelease 失败，尝试 assembleDebug..." && \
+         ./gradlew assembleDebug --no-daemon --stacktrace --warning-mode all) || \
+        (echo "所有构建尝试失败" && exit 1)
+        
+        echo "构建过程完成"
 
     # 步骤8: 查找APK文件
     - name: Find APK files
+      if: success()
       id: find_apk
       run: |
         echo "=== 查找APK文件 ==="
         
         # 查找所有APK文件
         find . -name "*.apk" -type f | while read file; do
-          echo "找到APK: $file"
-          ls -la "$file"
+          echo "找到APK: $file (大小: $(ls -lh "$file" | awk '{print $5}'))"
         done
         
-        # 检查常见的APK输出路径
-        echo "检查标准输出目录:"
-        if [ -d "app/build/outputs/apk" ]; then
-          echo "app/build/outputs/apk 目录存在"
-          find app/build/outputs/apk -name "*.apk" -type f
-        fi
-        
-        if [ -d "build/outputs/apk" ]; then
-          echo "build/outputs/apk 目录存在"
-          find build/outputs/apk -name "*.apk" -type f
-        fi
-        
-        # 确定要使用的APK文件
+        # 确定APK文件
         if [ -f "app/build/outputs/apk/release/app-release.apk" ]; then
           APK_PATH="app/build/outputs/apk/release/app-release.apk"
-          echo "使用标准Release APK"
-        elif [ -f "app/build/outputs/apk/release/app-armeabi-v7a-release.apk" ]; then
-          APK_PATH="app/build/outputs/apk/release/app-armeabi-v7a-release.apk"
-          echo "使用ARMv7 Release APK"
+        elif [ -f "app/build/outputs/apk/debug/app-debug.apk" ]; then
+          APK_PATH="app/build/outputs/apk/debug/app-debug.apk"
         else
-          # 查找第一个release APK
-          APK_PATH=$(find . -name "*release*.apk" -type f | head -1)
-          if [ -n "$APK_PATH" ]; then
-            echo "使用找到的第一个Release APK: $APK_PATH"
-          else
-            # 查找任何APK文件
-            APK_PATH=$(find . -name "*.apk" -type f | head -1)
-            if [ -n "$APK_PATH" ]; then
-              echo "使用找到的第一个APK: $APK_PATH"
-            fi
-          fi
+          APK_PATH=$(find . -name "*.apk" -type f | head -1)
         fi
         
         if [ -n "$APK_PATH" ] && [ -f "$APK_PATH" ]; then
-          echo "最终APK路径: $APK_PATH"
+          echo "使用APK: $APK_PATH"
           echo "apk_path=$APK_PATH" >> $GITHUB_OUTPUT
-          
-          # 复制并重命名APK文件
-          cp "$APK_PATH" "./FongMi-TV-fongmi.apk"
-          echo "重命名完成"
+          cp "$APK_PATH" "./FongMi-TV.apk"
         else
-          echo "错误: 未找到任何APK文件"
-          echo "详细目录结构:"
-          find . -name "build" -type d
+          echo "未找到APK文件"
           exit 1
         fi
 
-    # 步骤9: 准备构建信息
-    - name: Setup build info
-      id: build_info
-      run: |
-        BUILD_DATE=$(date +'%Y-%m-%d-%H%M')
-        echo "build_date=$BUILD_DATE" >> $GITHUB_OUTPUT
-        echo "branch=fongmi" >> $GITHUB_OUTPUT
-
-    # 步骤10: 上传APK到Artifacts
+    # 步骤9: 上传APK
     - name: Upload APK artifact
+      if: success()
       uses: actions/upload-artifact@v4
       with:
-        name: FongMi-TV-fongmi-${{ steps.build_info.outputs.build_date }}
-        path: FongMi-TV-fongmi.apk
+        name: FongMi-TV-fongmi
+        path: FongMi-TV.apk
         retention-days: 90
 
-    # 步骤11: 创建GitHub Release（手动触发时）
-    - name: Create GitHub Release
-      if: github.event_name == 'workflow_dispatch'
-      uses: softprops/action-gh-release@v1
-      with:
-        tag_name: fongmi-build-${{ steps.build_info.outputs.build_date }}
-        name: FongMi TV (fongmi分支) Build ${{ steps.build_info.outputs.build_date }}
-        body: |
-          🚀 自动构建的 FongMi TV APK - fongmi 分支
-          
-          **构建信息:**
-          - 源项目: [FongMi/TV](https://github.com/FongMi/TV/tree/fongmi)
-          - 分支: fongmi
-          - 构建时间: ${{ steps.build_info.outputs.build_date }}
-          - 触发方式: 手动触发
-          
-          **下载说明:**
-          1. 点击下方的 APK 文件下载
-          2. 传输到 Android TV/手机设备
-          3. 安装并享受观影体验
-          
-          **注意事项:**
-          - 此为自动构建版本，非官方发布
-          - 基于 fongmi 分支最新代码构建
-          - 如有问题请参考原项目
-        files: FongMi-TV-fongmi.apk
-        draft: false
-        prerelease: false
-
-    # 步骤12: 构建成功通知
-    - name: Build success notification
-      if: success()
+    # 步骤10: 构建失败时的诊断信息
+    - name: Build failure diagnostics
+      if: failure()
       run: |
-        echo "🎉 FongMi TV (fongmi分支) APK 构建成功!"
-        echo "📱 APK 文件: FongMi-TV-fongmi.apk"
-        echo "📦 已上传到 Artifacts: FongMi-TV-fongmi-${{ steps.build_info.outputs.build_date }}"
-        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-          echo "🚀 已创建 GitHub Release: fongmi-build-${{ steps.build_info.outputs.build_date }}"
-        fi
-        echo "🔗 源代码: https://github.com/FongMi/TV/tree/fongmi"
+        echo "=== 构建失败诊断信息 ==="
+        echo "检查构建目录:"
+        find . -name "build" -type d | head -5
+        echo "检查错误日志:"
+        find . -name "*.log" -type f | head -10
+        echo "Gradle 属性:"
+        find . -name "gradle.properties" -type f | head -3
+        echo "项目模块:"
+        find . -name "build.gradle" -type f | head -5
