@@ -1,9 +1,11 @@
-name: Build FongMi TV
+name: Build and Release FongMi TV
 
 on:
   push:
     branches: [ main, master ]
-  workflow_dispatch:
+  schedule:
+    - cron: '0 2 * * *'  # 每天凌晨2点自动构建
+  workflow_dispatch:       # 手动触发
 
 jobs:
   build:
@@ -16,15 +18,6 @@ jobs:
         repository: FongMi/tv
         token: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Debug - List files
-      run: |
-        echo "当前目录结构:"
-        ls -la
-        echo "app目录结构:"
-        ls -la app/ || echo "没有app目录"
-        echo "查找gradlew文件:"
-        find . -name "gradlew" -type f 2>/dev/null || echo "未找到gradlew文件"
-
     - name: Set up JDK 17
       uses: actions/setup-java@v4
       with:
@@ -34,36 +27,50 @@ jobs:
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
 
-    - name: Check and fix gradlew
-      run: |
-        if [ ! -f "./gradlew" ]; then
-          echo "gradlew不存在，尝试生成..."
-          # 检查是否有gradle wrapper
-          if [ -f "gradle/wrapper/gradle-wrapper.jar" ]; then
-            echo "使用gradle命令生成wrapper"
-            ./gradlew tasks || chmod +x gradlew || gradle wrapper
-          else
-            echo "生成gradle wrapper"
-            gradle wrapper
-          fi
-        fi
-        chmod +x ./gradlew || echo "无法设置gradlew权限"
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@v3
+
+    - name: Make gradlew executable
+      run: chmod +x ./gradlew
 
     - name: Build APK
+      run: ./gradlew assembleRelease
+
+    - name: Get build info
+      id: build_info
       run: |
-        # 尝试不同的构建命令
-        if [ -f "./gradlew" ]; then
-          ./gradlew assembleRelease
-        else
-          echo "使用系统gradle构建"
-          gradle assembleRelease
-        fi
+        echo "date=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
+        echo "time=$(date +'%H:%M:%S')" >> $GITHUB_OUTPUT
+        echo "version=$(date +'%Y%m%d')" >> $GITHUB_OUTPUT
 
     - name: Upload APK artifact
       uses: actions/upload-artifact@v4
       with:
-        name: FongMi-TV
-        path: |
-          app/build/outputs/apk/**/*.apk
-          */build/outputs/apk/**/*.apk
-        retention-days: 30
+        name: FongMi-TV-${{ steps.build_info.outputs.date }}
+        path: app/build/outputs/apk/release/*.apk
+        retention-days: 90
+
+    - name: Upload APK to Release
+      uses: softprops/action-gh-release@v1
+      if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+      with:
+        tag_name: nightly-${{ steps.build_info.outputs.date }}
+        name: FongMi TV Nightly Build ${{ steps.build_info.outputs.date }}
+        body: |
+          🚀 自动构建的 FongMi TV APK
+
+          **构建信息:**
+          - 源项目: [FongMi/tv](https://github.com/FongMi/tv)
+          - 构建日期: ${{ steps.build_info.outputs.date }}
+          - 构建时间: ${{ steps.build_info.outputs.time }}
+          - 触发方式: ${{ github.event_name }}
+
+          **使用说明:**
+          1. 下载 APK 文件到您的 Android TV 或盒子
+          2. 通过文件管理器安装
+          3. 如有问题，请参考原项目文档
+
+          ⚠️ 此为自动构建版本，非官方发布
+        draft: false
+        prerelease: true
+        files: app/build/outputs/apk/release/*.apk
