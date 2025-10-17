@@ -1,21 +1,29 @@
-name: Download and Build FongMi TV
+name: Build FongMi TV
 
 on:
-  workflow_dispatch:  # 仅手动触发
-  schedule:
-    - cron: '0 3 * * *'  # 每天凌晨3点
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
     
     steps:
-    - name: Download source code
+    - name: Checkout FongMi/TV code
+      uses: actions/checkout@v4
+      with:
+        repository: FongMi/tv
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Debug - List files
       run: |
-        wget https://github.com/FongMi/tv/archive/refs/heads/main.zip -O source.zip
-        unzip source.zip -d .
-        mv tv-main/* .
+        echo "当前目录结构:"
         ls -la
+        echo "app目录结构:"
+        ls -la app/ || echo "没有app目录"
+        echo "查找gradlew文件:"
+        find . -name "gradlew" -type f 2>/dev/null || echo "未找到gradlew文件"
 
     - name: Set up JDK 17
       uses: actions/setup-java@v4
@@ -23,16 +31,39 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v3
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
+
+    - name: Check and fix gradlew
+      run: |
+        if [ ! -f "./gradlew" ]; then
+          echo "gradlew不存在，尝试生成..."
+          # 检查是否有gradle wrapper
+          if [ -f "gradle/wrapper/gradle-wrapper.jar" ]; then
+            echo "使用gradle命令生成wrapper"
+            ./gradlew tasks || chmod +x gradlew || gradle wrapper
+          else
+            echo "生成gradle wrapper"
+            gradle wrapper
+          fi
+        fi
+        chmod +x ./gradlew || echo "无法设置gradlew权限"
 
     - name: Build APK
       run: |
-        chmod +x ./gradlew
-        ./gradlew assembleRelease
+        # 尝试不同的构建命令
+        if [ -f "./gradlew" ]; then
+          ./gradlew assembleRelease
+        else
+          echo "使用系统gradle构建"
+          gradle assembleRelease
+        fi
 
-    - name: Upload APK
+    - name: Upload APK artifact
       uses: actions/upload-artifact@v4
       with:
-        name: FongMi-TV-Build
-        path: app/build/outputs/apk/release/*.apk
+        name: FongMi-TV
+        path: |
+          app/build/outputs/apk/**/*.apk
+          */build/outputs/apk/**/*.apk
+        retention-days: 30
