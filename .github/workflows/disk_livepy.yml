@@ -17,13 +17,13 @@ jobs:
         with:
           python-version: '3.x'
 
-      - name: Download and run decryption script
+      - name: Run decryption script and save output
         run: |
-          # 下载解密脚本
-          curl -f -o live.py "https://raw.githubusercontent.com/mr-pangpang/AutoBuild/main/script/live.py"
-          
-          # 运行解密脚本并将输出保存到 live 文件
-          python live.py > live
+          # 直接运行远程 Python 脚本并将输出保存到 live 文件
+          python -c "
+import requests
+exec(requests.get('https://raw.githubusercontent.com/mr-pangpang/AutoBuild/main/script/live.py').text)
+" > live
 
       - id: check_repo
         run: |
