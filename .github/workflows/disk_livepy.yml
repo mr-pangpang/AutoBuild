@@ -22,34 +22,32 @@ jobs:
 
       - name: Run remote script and save output
         run: |
-          # 获取远程脚本并执行，过滤掉日志信息，只保存解密内容
+          # 先下载脚本到本地
+          curl -s -o live_script.py https://raw.githubusercontent.com/mr-pangpang/AutoBuild/main/script/live.py
+          
+          # 运行脚本并保存所有输出到临时文件
+          python live_script.py > temp_output.txt
+          
+          # 处理输出，提取解密后的内容
           python -c "
-import requests
-import sys
-from io import StringIO
+# 读取原始输出
+with open('temp_output.txt', 'r', encoding='utf-8') as f:
+    content = f.read()
 
-# 重定向标准输出来捕获脚本输出
-old_stdout = sys.stdout
-sys.stdout = mystdout = StringIO()
-
-# 执行远程脚本
-exec(requests.get('https://raw.githubusercontent.com/mr-pangpang/AutoBuild/main/script/live.py').text)
-
-# 获取所有输出
-output = mystdout.getvalue()
-sys.stdout = old_stdout
-
-# 提取解密后的内容（在 '解密后的内容:' 之后的部分）
-if '解密后的内容:' in output:
-    content_start = output.find('解密后的内容:') + len('解密后的内容:')
-    content_end = output.find('==================================================', content_start)
-    if content_end != -1:
-        clean_content = output[content_start:content_end].strip()
+# 提取解密后的内容
+if '解密后的内容:' in content:
+    start = content.find('解密后的内容:') + len('解密后的内容:')
+    end = content.find('==================================================', start)
+    if end != -1:
+        clean_content = content[start:end].strip()
         print(clean_content)
 else:
-    # 如果没有找到标记，直接输出所有内容
-    print(output)
+    # 如果没有标记，输出所有内容
+    print(content)
 " > live
+          
+          # 清理临时文件
+          rm -f live_script.py temp_output.txt
 
       - id: check_repo
         run: |
