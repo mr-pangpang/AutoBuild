@@ -55,11 +55,11 @@ else:
         run: |
           RESPONSE=$(curl -s -w "%{http_code}" -H "Authorization: token ${{ secrets.PANGPANG }}" "https://api.github.com/repos/dpdisk/m3u")
           HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
-          echo "repo_exists=$([ "$HTTP_CODE" -eq 200 ] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
+          echo "repo_exists=$([ \"$HTTP_CODE\" -eq 200 ] && echo \"true\" || echo \"false\")" >> \$GITHUB_OUTPUT
 
       - if: steps.check_repo.outputs.repo_exists == 'false'
         run: |
-          curl -X POST -H "Authorization: token ${{ secrets.PANGPANG }}" -H "Content-Type: application/json" -d '{"name":"m3u","auto_init":false,"visibility":"public"}' "https://api.github.com/user/repos"
+          curl -X POST -H "Authorization: token ${{ secrets.PANGPANG }}" -H "Content-Type: application/json" -d '{\"name\":\"m3u\",\"auto_init\":false,\"visibility\":\"public\"}' "https://api.github.com/user/repos"
 
       - run: |
           git clone -b main --single-branch https://${{ secrets.PANGPANG }}@github.com/dpdisk/m3u.git target-repo || (mkdir -p target-repo && cd target-repo && git init && git remote add origin https://${{ secrets.PANGPANG }}@github.com/dpdisk/m3u.git && git checkout -b main)
@@ -72,6 +72,6 @@ else:
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
           git add live
-          CURRENT_TIME=$(date -d "+8 hours" +'%Y-%m-%d %H:%M:%S')
-          git commit -m "updatetime $CURRENT_TIME" || true
+          CURRENT_TIME=$(date -d \"+8 hours\" +'%Y-%m-%d %H:%M:%S')
+          git commit -m \"updatetime \$CURRENT_TIME\" || true
           git push https://${{ secrets.PANGPANG }}@github.com/dpdisk/m3u.git HEAD:main
