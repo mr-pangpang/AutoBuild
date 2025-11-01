@@ -20,46 +20,20 @@ jobs:
       - name: Install requests if needed
         run: pip install requests
 
-      - name: Run remote script and save clean output
+      - name: Run remote script and save output
         run: |
-          # 获取远程脚本并执行，只保存解密后的实际内容
-          python -c "
-import requests
-import sys
-from io import StringIO
-
-# 重定向标准输出来捕获脚本输出
-old_stdout = sys.stdout
-sys.stdout = mystdout = StringIO()
-
-# 执行远程脚本
-exec(requests.get('https://raw.githubusercontent.com/mr-pangpang/AutoBuild/main/script/live.py').text)
-
-# 获取所有输出
-output = mystdout.getvalue()
-sys.stdout = old_stdout
-
-# 提取解密后的内容（在 '解密后的内容:' 之后的部分）
-if '解密后的内容:' in output:
-    content_start = output.find('解密后的内容:') + len('解密后的内容:')
-    content_end = output.find('==================================================', content_start)
-    if content_end != -1:
-        clean_content = output[content_start:content_end].strip()
-        print(clean_content)
-else:
-    # 如果没有找到标记，尝试直接输出（可能是脚本已经有自己的输出控制）
-    print(output)
-" > live
+          # 获取远程脚本并执行，将输出保存到 live 文件
+          curl -s https://raw.githubusercontent.com/mr-pangpang/AutoBuild/main/script/live.py | python > live
 
       - id: check_repo
         run: |
           RESPONSE=$(curl -s -w "%{http_code}" -H "Authorization: token ${{ secrets.PANGPANG }}" "https://api.github.com/repos/dpdisk/m3u")
           HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
-          echo "repo_exists=$([ \"$HTTP_CODE\" -eq 200 ] && echo \"true\" || echo \"false\")" >> \$GITHUB_OUTPUT
+          echo "repo_exists=$([ "$HTTP_CODE" -eq 200 ] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
 
       - if: steps.check_repo.outputs.repo_exists == 'false'
         run: |
-          curl -X POST -H "Authorization: token ${{ secrets.PANGPANG }}" -H "Content-Type: application/json" -d '{\"name\":\"m3u\",\"auto_init\":false,\"visibility\":\"public\"}' "https://api.github.com/user/repos"
+          curl -X POST -H "Authorization: token ${{ secrets.PANGPANG }}" -H "Content-Type: application/json" -d '{"name":"m3u","auto_init":false,"visibility":"public"}' "https://api.github.com/user/repos"
 
       - run: |
           git clone -b main --single-branch https://${{ secrets.PANGPANG }}@github.com/dpdisk/m3u.git target-repo || (mkdir -p target-repo && cd target-repo && git init && git remote add origin https://${{ secrets.PANGPANG }}@github.com/dpdisk/m3u.git && git checkout -b main)
@@ -72,6 +46,6 @@ else:
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
           git add live
-          CURRENT_TIME=$(date -d \"+8 hours\" +'%Y-%m-%d %H:%M:%S')
-          git commit -m \"updatetime \$CURRENT_TIME\" || true
+          CURRENT_TIME=$(date -d "+8 hours" +'%Y-%m-%d %H:%M:%S')
+          git commit -m "updatetime $CURRENT_TIME" || true
           git push https://${{ secrets.PANGPANG }}@github.com/dpdisk/m3u.git HEAD:main
