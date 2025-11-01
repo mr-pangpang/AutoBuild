@@ -1,4 +1,4 @@
-name: disk_live
+name: disk_livepy
 on:
   schedule:
     - cron: "0 */2 * * *"
@@ -22,32 +22,24 @@ jobs:
 
       - name: Run remote script and save output
         run: |
-          # 先下载脚本到本地
-          curl -s -o live_script.py https://raw.githubusercontent.com/mr-pangpang/AutoBuild/main/script/live.py
+          # 获取远程脚本并执行，将输出保存到临时文件
+          curl -s https://raw.githubusercontent.com/mr-pangpang/AutoBuild/main/script/live.py | python > temp_output.txt
           
-          # 运行脚本并保存所有输出到临时文件
-          python live_script.py > temp_output.txt
-          
-          # 处理输出，提取解密后的内容
-          python -c "
-# 读取原始输出
-with open('temp_output.txt', 'r', encoding='utf-8') as f:
-    content = f.read()
-
-# 提取解密后的内容
-if '解密后的内容:' in content:
-    start = content.find('解密后的内容:') + len('解密后的内容:')
-    end = content.find('==================================================', start)
-    if end != -1:
-        clean_content = content[start:end].strip()
-        print(clean_content)
-else:
-    # 如果没有标记，输出所有内容
-    print(content)
-" > live
+          # 使用 sed 删除包含特定关键词的行
+          sed -e '/正在解密:/d' \
+              -e '/原始内容长度:/d' \
+              -e '/清理注释后长度:/d' \
+              -e '/正在删除字段:/d' \
+              -e '/已删除字段:/d' \
+              -e '/删除空白行:/d' \
+              -e '/✅ 已添加自定义字段/d' \
+              -e '/最终内容长度:/d' \
+              -e '/==================================================/d' \
+              -e '/解密后的内容:/d' \
+              temp_output.txt > live
           
           # 清理临时文件
-          rm -f live_script.py temp_output.txt
+          rm -f temp_output.txt
 
       - id: check_repo
         run: |
