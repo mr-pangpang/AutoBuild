@@ -13,7 +13,7 @@ jobs:
           persist-credentials: false
 
       - run: |
-          curl -f -o tvbox.apk "http://123.56.43.183:7070/d/D%3A/Administrator/Desktop/shared/TV/apk/tvbox.apk"
+          curl -f -o tvbox.apk "http://123.56.43.183:7070/d/D%3A/Administrator/Desktop/shared/TV/apk/okys/tvbox.apk"
 
       - id: check_repo
         run: |
