@@ -38,19 +38,16 @@ jobs:
               -e '/解密后的内容:/d' \
               temp_output.txt > temp_output_cleaned.txt
 
-      - name: Move "我的夸克" after "本地播放"
+      - name: Add "我的夸克" after "本地播放"
         run: |
           # 读取清理后的文件内容
           content=$(cat temp_output_cleaned.txt)
           
-          # 提取"我的夸克"部分（完整的一行）
-          my_quark_line=$(echo "$content" | grep '{"key":"我的夸克"')
+          # 定义"我的夸克"的内容
+          my_quark_line='{"key":"我的夸克","name":"🗽我的┃夸克","type":3,"api":"csp_MyQuarkGuard","searchable":0,"quickSearch":0,"changeable":0,"filterable":0,"indexs":0,"style":{"type":"list"},"timeout":30},'
           
-          # 从原内容中删除"我的夸克"行
-          content_without_quark=$(echo "$content" | grep -v '{"key":"我的夸克"')
-          
-          # 在"本地播放"后面插入"我的夸克"行
-          echo "$content_without_quark" | awk -v quark="$my_quark_line" '
+          # 在"本地播放"后面插入"我的夸克"
+          echo "$content" | awk -v quark="$my_quark_line" '
             /{"key":"本地播放".*/ {
               print
               found_local=1
