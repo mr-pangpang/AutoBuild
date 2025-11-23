@@ -36,27 +36,10 @@ jobs:
               -e '/最终内容长度:/d' \
               -e '/==================================================/d' \
               -e '/解密后的内容:/d' \
-              temp_output.txt > temp_live.txt
+              temp_output.txt > live
           
           # 清理临时文件
           rm -f temp_output.txt
-
-      - name: Process live file - remove and reorder JSON objects
-        run: |
-          # 定义要移动的 JSON 对象的关键词
-          QUARK_OBJECT='{"key":"我的夸克","name":"🗽我的┃夸克","type":3,"api":"csp_MyQuarkGuard","searchable":0,"quickSearch":0,"changeable":0,"filterable":0,"indexs":0,"style":{"type":"list"},"timeout":30},'
-          
-          # 从文件中删除该对象
-          grep -v "$QUARK_OBJECT" temp_live.txt > temp_processed.txt
-          
-          # 将删除的对象添加到文件末尾
-          echo "$QUARK_OBJECT" >> temp_processed.txt
-          
-          # 重命名为最终文件
-          mv temp_processed.txt live
-          
-          # 清理临时文件
-          rm -f temp_live.txt
 
       - id: check_repo
         run: |
