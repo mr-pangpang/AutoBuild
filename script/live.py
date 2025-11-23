@@ -1,4 +1,5 @@
 import requests
+import re
 
 def decrypt_and_view(target_url):
     """
@@ -31,7 +32,10 @@ def decrypt_and_view(target_url):
             # 第三步：删除 proxy 字段
             content = remove_specific_fields(content, ['"proxy"'])
             
-            # 第四步：在内容最后添加指定字段
+            # 第四步：重新排列JSON项目，将"我的夸克"移动到"本地播放"后面
+            content = move_my_quark(content)
+            
+            # 第五步：在内容最后添加指定字段
             content = add_custom_fields(content)
             
             print(f"最终内容长度: {len(content)}")
@@ -145,6 +149,77 @@ def remove_blank_lines(content):
     print(f"删除空白行: {len(lines)} -> {len(non_blank_lines)} 行")
     
     return cleaned_content
+
+def move_my_quark(content):
+    """
+    将"我的夸克"项目移动到"本地播放"后面
+    """
+    try:
+        # 使用正则表达式找到"我的夸克"项目
+        my_quark_pattern = r'(\{"key":"我的夸克".*?"timeout":30\},?)'
+        my_quark_match = re.search(my_quark_pattern, content, re.DOTALL)
+        
+        if not my_quark_match:
+            print("❌ 未找到'我的夸克'项目")
+            return content
+            
+        my_quark_content = my_quark_match.group(1)
+        print(f"找到'我的夸克'项目")
+        
+        # 从原位置删除"我的夸克"
+        content_without_quark = content.replace(my_quark_content, "", 1)
+        
+        # 清理可能的多余逗号和空行
+        content_without_quark = re.sub(r',\s*,', ',', content_without_quark)
+        content_without_quark = re.sub(r',\s*}', '}', content_without_quark)
+        content_without_quark = re.sub(r',\s*]', ']', content_without_quark)
+        # 删除连续的空行
+        content_without_quark = re.sub(r'\n\s*\n', '\n', content_without_quark)
+        
+        # 找到"本地播放"项目的位置
+        local_play_pattern = r'(\{"key":"本地播放".*?"timeout":5\},?)'
+        local_play_match = re.search(local_play_pattern, content_without_quark, re.DOTALL)
+        
+        if not local_play_match:
+            print("❌ 未找到'本地播放'项目")
+            return content
+            
+        local_play_content = local_play_match.group(1)
+        local_play_end = local_play_match.end()
+        
+        print(f"找到'本地播放'项目")
+        
+        # 在"本地播放"后面插入"我的夸克"
+        before_local_play = content_without_quark[:local_play_end]
+        after_local_play = content_without_quark[local_play_end:]
+        
+        # 构建新内容
+        new_content = before_local_play
+        
+        # 确保在"本地播放"后面有逗号
+        if not before_local_play.rstrip().endswith(','):
+            new_content = new_content.rstrip() + ','
+        
+        # 添加换行和"我的夸克"项目
+        new_content += '\n' + my_quark_content
+        
+        # 如果"我的夸克"后面没有逗号，添加一个
+        if not my_quark_content.endswith(','):
+            new_content += ','
+        
+        # 添加剩余内容
+        new_content += after_local_play
+        
+        # 再次清理格式
+        new_content = re.sub(r'\n\s*\n', '\n', new_content)
+        new_content = re.sub(r',\s*,', ',', new_content)
+        
+        print("✅ 已成功将'我的夸克'移动到'本地播放'后面")
+        return new_content
+        
+    except Exception as e:
+        print(f"❌ 移动'我的夸克'时出错: {e}")
+        return content
 
 def add_custom_fields(content):
     """
