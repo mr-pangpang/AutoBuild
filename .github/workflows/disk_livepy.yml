@@ -37,31 +37,26 @@ jobs:
               -e '/==================================================/d' \
               -e '/解密后的内容:/d' \
               temp_output.txt > temp_live.txt
-
-      - name: Modify content structure
-        run: |
-          # 查找"我的夸克"段并保存到变量
-          QUARK_SECTION=$(grep -A 10 '{"key":"我的夸克"' temp_live.txt | grep -B 10 '},' | head -n 10)
-          
-          # 如果找到了"我的夸克"段，则进行处理
-          if [ -n "$QUARK_SECTION" ]; then
-            # 创建临时文件
-            cp temp_live.txt temp_modified.txt
-            
-            # 删除原来的"我的夸克"段
-            sed -i '/{"key":"我的夸克"/,/},/d' temp_modified.txt
-            
-            # 在"本地播放"段后面插入"我的夸克"段
-            sed -i '/{"key":"本地播放","name":"🐼本地┃播放","type":3,"api":"csp_LocalGuard","searchable":0,"changeable":0,"indexs":0,"style":{"type":"list"},"timeout":5},/a\
-'"$QUARK_SECTION" temp_modified.txt
-            
-            mv temp_modified.txt live
-          else
-            mv temp_live.txt live
-          fi
           
           # 清理临时文件
-          rm -f temp_live.txt temp_output.txt
+          rm -f temp_output.txt
+
+      - name: Process live file - remove and reorder JSON objects
+        run: |
+          # 定义要移动的 JSON 对象的关键词
+          QUARK_OBJECT='{"key":"我的夸克","name":"🗽我的┃夸克","type":3,"api":"csp_MyQuarkGuard","searchable":0,"quickSearch":0,"changeable":0,"filterable":0,"indexs":0,"style":{"type":"list"},"timeout":30},'
+          
+          # 从文件中删除该对象
+          grep -v "$QUARK_OBJECT" temp_live.txt > temp_processed.txt
+          
+          # 将删除的对象添加到文件末尾
+          echo "$QUARK_OBJECT" >> temp_processed.txt
+          
+          # 重命名为最终文件
+          mv temp_processed.txt live
+          
+          # 清理临时文件
+          rm -f temp_live.txt
 
       - id: check_repo
         run: |
