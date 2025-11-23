@@ -53,13 +53,15 @@ jobs:
           echo "$content_without_quark" | awk -v quark="$my_quark_line" '
             /{"key":"本地播放".*/ {
               print
-              found_local=1
-              next
-            }
-            found_local == 1 && /^[[:space:]]*},[[:space:]]*$/ {
-              print $0
-              print quark
-              found_local=0
+              # 读取并打印本地播放的剩余行，直到遇到 },
+              while (getline > 0) {
+                print
+                if ($0 ~ /^[[:space:]]*},[[:space:]]*$/) {
+                  # 在本地播放结束后插入我的夸克
+                  print quark
+                  break
+                }
+              }
               next
             }
             {print}
