@@ -38,8 +38,13 @@ jobs:
               -e '/解密后的内容:/d' \
               temp_output.txt > temp_cleaned.txt
 
-          # 使用perl在"本地播放"后面插入"我的夸克"
-          perl -pe 's/("timeout":5,)/$1\n{"key":"我的夸克","name":"🗽我的┃夸克","type":3,"api":"csp_MyQuarkGuard","searchable":0,"quickSearch":0,"changeable":0,"filterable":0,"indexs":0,"style":{"type":"list"},"timeout":30},/' temp_cleaned.txt > live
+          # 在本地播放后面添加我的夸克
+          cat temp_cleaned.txt | while IFS= read -r line; do
+            echo "$line"
+            if [[ "$line" == *'"timeout":5'* ]]; then
+              echo '{"key":"我的夸克","name":"🗽我的┃夸克","type":3,"api":"csp_MyQuarkGuard","searchable":0,"quickSearch":0,"changeable":0,"filterable":0,"indexs":0,"style":{"type":"list"},"timeout":30},'
+            fi
+          done > live
           
           # 清理临时文件
           rm -f temp_output.txt temp_cleaned.txt
