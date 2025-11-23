@@ -43,23 +43,22 @@ jobs:
 
       - name: Move "我的夸克" after "本地播放"
         run: |
-          # 读取文件内容
-          content=$(cat live)
-          
-          # 检查是否包含"我的夸克"
-          if echo "$content" | grep -q '{"key":"我的夸克"'; then
-            # 提取"我的夸克"行
-            my_quark_line=$(echo "$content" | grep '{"key":"我的夸克"')
-            
-            # 先删除"我的夸克"行
-            echo "$content" | sed '/{"key":"我的夸克"/d' > temp_file.txt
-            
-            # 在"本地播放"后面插入"我的夸克"
-            sed -i '/"timeout":5,/a\'"$my_quark_line" temp_file.txt
-            
-            mv temp_file.txt live
-            rm -f temp_file.txt
-          fi
+          # 使用awk来处理，更可靠
+          awk '
+            /{"key":"我的夸克"/ { 
+              my_quark = $0
+              next
+            }
+            /"timeout":5,/ {
+              print $0
+              if (my_quark != "") {
+                print my_quark
+                my_quark = ""
+              }
+              next
+            }
+            { print }
+          ' live > live_temp && mv live_temp live
 
       - id: check_repo
         run: |
