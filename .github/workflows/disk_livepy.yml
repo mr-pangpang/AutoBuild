@@ -38,12 +38,21 @@ jobs:
               -e '/解密后的内容:/d' \
               temp_output.txt > temp_cleaned.txt
 
-          # 删除原来的"我的夸克"，然后在本地播放后面添加
-          sed -e '/{"key":"我的夸克"/d' -e '/"timeout":5,/a\
-{"key":"我的夸克","name":"🗽我的┃夸克","type":3,"api":"csp_MyQuarkGuard","searchable":0,"quickSearch":0,"changeable":0,"filterable":0,"indexs":0,"style":{"type":"list"},"timeout":30},' temp_cleaned.txt > live
+          # 删除原来的"我的夸克"
+          grep -v '{"key":"我的夸克"' temp_cleaned.txt > temp_no_quark.txt
+          
+          # 在本地播放后面添加"我的夸克"
+          awk '
+            /"timeout":5,/ {
+              print $0
+              print "{\"key\":\"我的夸克\",\"name\":\"🗽我的┃夸克\",\"type\":3,\"api\":\"csp_MyQuarkGuard\",\"searchable\":0,\"quickSearch\":0,\"changeable\":0,\"filterable\":0,\"indexs\":0,\"style\":{\"type\":\"list\"},\"timeout\":30},"
+              next
+            }
+            { print }
+          ' temp_no_quark.txt > live
           
           # 清理临时文件
-          rm -f temp_output.txt temp_cleaned.txt
+          rm -f temp_output.txt temp_cleaned.txt temp_no_quark.txt
 
       - id: check_repo
         run: |
