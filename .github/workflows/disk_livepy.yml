@@ -38,21 +38,44 @@ jobs:
               -e '/解密后的内容:/d' \
               temp_output.txt > temp_cleaned.txt
 
-          # 删除原来的"我的夸克"
-          grep -v '{"key":"我的夸克"' temp_cleaned.txt > temp_no_quark.txt
-          
-          # 在本地播放后面添加"我的夸克"
-          awk '
-            /"timeout":5,/ {
-              print $0
-              print "{\"key\":\"我的夸克\",\"name\":\"🗽我的┃夸克\",\"type\":3,\"api\":\"csp_MyQuarkGuard\",\"searchable\":0,\"quickSearch\":0,\"changeable\":0,\"filterable\":0,\"indexs\":0,\"style\":{\"type\":\"list\"},\"timeout\":30},"
-              next
-            }
-            { print }
-          ' temp_no_quark.txt > live
+          # 使用Python来移动"我的夸克"
+          python3 -c "
+import sys
+
+# 读取文件内容
+with open('temp_cleaned.txt', 'r') as f:
+    lines = f.readlines()
+
+# 找到'我的夸克'行和'本地播放'的位置
+my_quark_index = -1
+local_play_index = -1
+
+for i, line in enumerate(lines):
+    if '\"key\":\"我的夸克\"' in line:
+        my_quark_index = i
+        my_quark_line = line
+    if '\"key\":\"本地播放\"' in line:
+        local_play_index = i
+
+# 如果找到了'我的夸克'，就移动它
+if my_quark_index != -1 and local_play_index != -1:
+    # 删除原来的'我的夸克'
+    lines.pop(my_quark_index)
+    
+    # 找到'本地播放'块的结束位置（包含timeout的那一行）
+    for i in range(local_play_index, len(lines)):
+        if '\"timeout\":5' in lines[i]:
+            # 在这一行后面插入'我的夸克'
+            lines.insert(i + 1, my_quark_line)
+            break
+
+# 写入结果
+with open('live', 'w') as f:
+    f.writelines(lines)
+"
           
           # 清理临时文件
-          rm -f temp_output.txt temp_cleaned.txt temp_no_quark.txt
+          rm -f temp_output.txt temp_cleaned.txt
 
       - id: check_repo
         run: |
