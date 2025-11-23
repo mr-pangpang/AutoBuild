@@ -49,7 +49,7 @@ jobs:
             my_quark_line=$(echo "$content" | grep '{"key":"我的夸克"')
             
             # 从原内容中删除"我的夸克"行
-            content_without_quark=$(echo "$content" | grep -v '{"key":"我的夸克"')
+            content_without_quark=$(echo "$content" | sed '/{"key":"我的夸克"/d')
           else
             # 如果不存在，创建"我的夸克"行
             my_quark_line='{"key":"我的夸克","name":"🗽我的┃夸克","type":3,"api":"csp_MyQuarkGuard","searchable":0,"quickSearch":0,"changeable":0,"filterable":0,"indexs":0,"style":{"type":"list"},"timeout":30},'
@@ -57,47 +57,21 @@ jobs:
           fi
           
           # 在"本地播放"后面插入"我的夸克"行
-          echo "$content_without_quark" | python3 -c "
-import sys
-
-content = sys.stdin.read()
-lines = content.split('\n')
-
-# 找到本地播放的位置
-local_play_index = -1
-for i, line in enumerate(lines):
-    if '\"key\":\"本地播放\"' in line:
-        local_play_index = i
-        break
-
-# 找到本地播放块的结束位置
-if local_play_index != -1:
-    brace_count = 0
-    in_local_play = False
-    end_index = -1
-    
-    for i in range(local_play_index, len(lines)):
-        line = lines[i]
-        if '\"key\":\"本地播放\"' in line:
-            in_local_play = True
-        
-        if in_local_play:
-            brace_count += line.count('{')
-            brace_count -= line.count('}')
-            
-            if brace_count == 0 and in_local_play:
-                end_index = i
-                break
-    
-    if end_index != -1:
-        # 在本地播放结束后插入我的夸克
-        lines.insert(end_index + 1, '$my_quark_line')
-        print('\n'.join(lines))
-    else:
-        print(content)
-else:
-    print(content)
-" > live
+          # 找到"本地播放"块结束的位置（包含 timeout 的那一行）
+          echo "$content_without_quark" | awk -v quark="$my_quark_line" '
+            /{"key":"本地播放".*/ {
+              print
+              found_local=1
+              next
+            }
+            found_local == 1 && /"timeout":5/ {
+              print
+              print quark
+              found_local=0
+              next
+            }
+            {print}
+          ' > live
           
           # 清理临时文件
           rm -f temp_output.txt temp_output_cleaned.txt
