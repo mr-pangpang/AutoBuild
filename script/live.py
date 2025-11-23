@@ -12,16 +12,13 @@ def decrypt_and_view(target_url):
     }
     
     try:
-        print(f"正在解密: {target_url}")
         response = requests.get(decrypt_api, params={'url': target_url}, headers=headers, timeout=30)
         
         if response.status_code == 200:
             content = response.text.strip()
-            print(f"原始内容长度: {len(content)}")
             
             # 清理注释行
             content = clean_comments(content)
-            print(f"清理注释后长度: {len(content)}")
             
             # 第一步：删除 ads 和 lives 字段
             content = remove_specific_fields(content, ['"ads"', '"lives"'])
@@ -38,18 +35,13 @@ def decrypt_and_view(target_url):
             # 第五步：在内容最后添加指定字段
             content = add_custom_fields(content)
             
-            print(f"最终内容长度: {len(content)}")
-            print("\n" + "="*50)
-            print("解密后的内容:")
-            print("="*50)
             print(content)
-            print("="*50)
             
         else:
-            print(f"❌ 解密失败，状态码: {response.status_code}")
+            print(f"解密失败，状态码: {response.status_code}")
             
     except Exception as e:
-        print(f"❌ 错误: {e}")
+        print(f"错误: {e}")
 
 def clean_comments(content):
     """
@@ -71,12 +63,9 @@ def remove_specific_fields(content, fields_to_remove):
     删除特定的JSON字段
     """
     for field in fields_to_remove:
-        print(f"正在删除字段: {field}")
-        
         # 查找字段开始位置
         start_pos = content.find(field)
         if start_pos == -1:
-            print(f"未找到字段: {field}")
             continue
             
         # 找到字段后的冒号
@@ -123,8 +112,6 @@ def remove_specific_fields(content, fields_to_remove):
             content = content[:start_pos] + content[pos+1:]
         else:
             content = content[:start_pos]
-        
-        print(f"已删除字段: {field}")
     
     # 清理可能的多余逗号
     content = content.replace(',,', ',')
@@ -145,10 +132,7 @@ def remove_blank_lines(content):
         if line.strip():
             non_blank_lines.append(line)
     
-    cleaned_content = '\n'.join(non_blank_lines)
-    print(f"删除空白行: {len(lines)} -> {len(non_blank_lines)} 行")
-    
-    return cleaned_content
+    return '\n'.join(non_blank_lines)
 
 def move_my_quark(content):
     """
@@ -160,11 +144,9 @@ def move_my_quark(content):
         my_quark_match = re.search(my_quark_pattern, content, re.DOTALL)
         
         if not my_quark_match:
-            print("❌ 未找到'我的夸克'项目")
             return content
             
         my_quark_content = my_quark_match.group(1)
-        print(f"找到'我的夸克'项目")
         
         # 从原位置删除"我的夸克"
         content_without_quark = content.replace(my_quark_content, "", 1)
@@ -173,7 +155,6 @@ def move_my_quark(content):
         content_without_quark = re.sub(r',\s*,', ',', content_without_quark)
         content_without_quark = re.sub(r',\s*}', '}', content_without_quark)
         content_without_quark = re.sub(r',\s*]', ']', content_without_quark)
-        # 删除连续的空行
         content_without_quark = re.sub(r'\n\s*\n', '\n', content_without_quark)
         
         # 找到"本地播放"项目的位置
@@ -181,13 +162,10 @@ def move_my_quark(content):
         local_play_match = re.search(local_play_pattern, content_without_quark, re.DOTALL)
         
         if not local_play_match:
-            print("❌ 未找到'本地播放'项目")
             return content
             
         local_play_content = local_play_match.group(1)
         local_play_end = local_play_match.end()
-        
-        print(f"找到'本地播放'项目")
         
         # 在"本地播放"后面插入"我的夸克"
         before_local_play = content_without_quark[:local_play_end]
@@ -214,11 +192,9 @@ def move_my_quark(content):
         new_content = re.sub(r'\n\s*\n', '\n', new_content)
         new_content = re.sub(r',\s*,', ',', new_content)
         
-        print("✅ 已成功将'我的夸克'移动到'本地播放'后面")
         return new_content
         
-    except Exception as e:
-        print(f"❌ 移动'我的夸克'时出错: {e}")
+    except Exception:
         return content
 
 def add_custom_fields(content):
@@ -270,7 +246,6 @@ def add_custom_fields(content):
         content = content.rstrip() + ','
     
     content += custom_content
-    print("✅ 已添加自定义字段")
     
     return content
 
