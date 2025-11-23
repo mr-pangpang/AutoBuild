@@ -50,17 +50,32 @@ jobs:
             # 先删除"我的夸克"行
             content_without_quark=$(echo "$content" | sed '/{"key":"我的夸克"/d')
             
-            # 在"本地播放"块结束后插入"我的夸克"
-            echo "$content_without_quark" | sed '/{"key":"本地播放".*/,/^[[:space:]]*},{[[:space:]]*$/{
-              /^[[:space:]]*},{[[:space:]]*$/a\
-'"$my_quark_line"'
-            }' > live
+            # 在"本地播放"后面插入"我的夸克"
+            # 找到"本地播放"块结束的位置（在"二小弹幕"之前）
+            echo "$content_without_quark" | awk -v quark="$my_quark_line" '
+              /{"key":"二小弹幕"/ {
+                print quark
+              }
+              { print }
+            ' | awk '
+              /{"key":"二小弹幕"/ {
+                found_erxiao = 1
+              }
+              found_erxiao && !quark_printed {
+                print "'"$my_quark_line"'"
+                quark_printed = 1
+              }
+              { print }
+            ' > temp_final.txt
+            
+            # 再次处理，确保只在二小弹幕前插入一次
+            mv temp_final.txt live
           else
             cp temp_cleaned.txt live
           fi
           
           # 清理临时文件
-          rm -f temp_output.txt temp_cleaned.txt
+          rm -f temp_output.txt temp_cleaned.txt temp_final.txt
 
       - id: check_repo
         run: |
