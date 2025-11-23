@@ -36,10 +36,36 @@ jobs:
               -e '/最终内容长度:/d' \
               -e '/==================================================/d' \
               -e '/解密后的内容:/d' \
-              temp_output.txt > live
+              temp_output.txt > temp_output_cleaned.txt
+
+      - name: Sort "我的夸克" after "本地播放"
+        run: |
+          # 读取清理后的文件内容
+          content=$(cat temp_output_cleaned.txt)
+          
+          # 提取"我的夸克"部分
+          my_quark_section=$(echo "$content" | grep -A 10 '{"key":"我的夸克"' | head -11)
+          
+          # 从原内容中删除"我的夸克"部分
+          content_without_quark=$(echo "$content" | sed '/{"key":"我的夸克"/,+10d')
+          
+          # 在"本地播放"后面插入"我的夸克"部分
+          echo "$content_without_quark" | awk -v quark="$my_quark_section" '
+            /{"key":"本地播放"/ {
+              print
+              getline; print
+              getline; print
+              getline; print
+              getline; print
+              getline; print
+              print quark
+              next
+            }
+            {print}
+          ' > live
           
           # 清理临时文件
-          rm -f temp_output.txt
+          rm -f temp_output.txt temp_output_cleaned.txt
 
       - id: check_repo
         run: |
