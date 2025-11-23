@@ -38,24 +38,26 @@ jobs:
               -e '/解密后的内容:/d' \
               temp_output.txt > temp_cleaned.txt
 
-          # 先提取"我的夸克"的内容
-          my_quark_line=$(grep '{"key":"我的夸克"' temp_cleaned.txt)
-          
-          # 如果找到了"我的夸克"，就移动它
-          if [ -n "$my_quark_line" ]; then
-            # 删除原来的"我的夸克"，然后在本地播放后面插入
-            awk -v quark="$my_quark_line" '
-              /{"key":"我的夸克"/ { found_quark = 1; next }
-              /"timeout":5,/ {
-                print $0
-                print quark
-                next
+          # 使用awk来移动"我的夸克"
+          awk '
+            # 保存"我的夸克"行
+            /{"key":"我的夸克"/ { 
+              my_quark = $0
+              next
+            }
+            # 在"本地播放"后面插入"我的夸克"
+            /"timeout":5,/ {
+              print $0
+              if (my_quark != "") {
+                print my_quark
+                my_quark_printed = 1
               }
-              { print }
-            ' temp_cleaned.txt > live
-          else
-            cp temp_cleaned.txt live
-          fi
+              next
+            }
+            # 打印其他行，但跳过后面重复的"我的夸克"
+            /{"key":"我的夸克"/ && my_quark_printed == 1 { next }
+            { print }
+          ' temp_cleaned.txt > live
           
           # 清理临时文件
           rm -f temp_output.txt temp_cleaned.txt
