@@ -36,22 +36,30 @@ jobs:
               -e '/最终内容长度:/d' \
               -e '/==================================================/d' \
               -e '/解密后的内容:/d' \
-              temp_output.txt > temp_cleaned.txt
+              temp_output.txt > live
+          
+          # 清理临时文件
+          rm -f temp_output.txt
 
       - name: Move "我的夸克" after "本地播放"
         run: |
-          # 读取清理后的文件内容
-          content=$(cat temp_cleaned.txt)
+          # 读取文件内容
+          content=$(cat live)
           
-          # 定义"我的夸克"的内容
-          my_quark='{"key":"我的夸克","name":"🗽我的┃夸克","type":3,"api":"csp_MyQuarkGuard","searchable":0,"quickSearch":0,"changeable":0,"filterable":0,"indexs":0,"style":{"type":"list"},"timeout":30},'
-          
-          # 直接在"本地播放"块后面插入"我的夸克"
-          echo "$content" | sed '/"timeout":5,/a\
-'"$my_quark" > live
-          
-          # 清理临时文件
-          rm -f temp_output.txt temp_cleaned.txt
+          # 检查是否包含"我的夸克"
+          if echo "$content" | grep -q '{"key":"我的夸克"'; then
+            # 提取"我的夸克"行
+            my_quark_line=$(echo "$content" | grep '{"key":"我的夸克"')
+            
+            # 先删除"我的夸克"行
+            echo "$content" | sed '/{"key":"我的夸克"/d' > temp_file.txt
+            
+            # 在"本地播放"后面插入"我的夸克"
+            sed -i '/"timeout":5,/a\'"$my_quark_line" temp_file.txt
+            
+            mv temp_file.txt live
+            rm -f temp_file.txt
+          fi
 
       - id: check_repo
         run: |
