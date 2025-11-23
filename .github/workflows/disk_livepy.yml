@@ -53,11 +53,10 @@ jobs:
           echo "$content_without_quark" | awk -v quark="$my_quark_line" '
             /{"key":"本地播放".*/ {
               print
-              # 找到本地播放的完整块（直到下一个site或sites数组结束）
               found_local=1
               next
             }
-            found_local && /^[[:space:]]*},[[:space:]]*$/ {
+            found_local == 1 && /^[[:space:]]*},[[:space:]]*$/ {
               print $0
               print quark
               found_local=0
