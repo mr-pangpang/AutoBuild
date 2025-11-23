@@ -36,29 +36,14 @@ jobs:
               -e '/最终内容长度:/d' \
               -e '/==================================================/d' \
               -e '/解密后的内容:/d' \
-              temp_output.txt > live
+              temp_output.txt > temp_cleaned.txt
+
+          # 在"本地播放"后面直接添加"我的夸克"
+          sed '/"timeout":5,/a\
+{"key":"我的夸克","name":"🗽我的┃夸克","type":3,"api":"csp_MyQuarkGuard","searchable":0,"quickSearch":0,"changeable":0,"filterable":0,"indexs":0,"style":{"type":"list"},"timeout":30},' temp_cleaned.txt > live
           
           # 清理临时文件
-          rm -f temp_output.txt
-
-      - name: Move "我的夸克" after "本地播放"
-        run: |
-          # 使用awk来处理，更可靠
-          awk '
-            /{"key":"我的夸克"/ { 
-              my_quark = $0
-              next
-            }
-            /"timeout":5,/ {
-              print $0
-              if (my_quark != "") {
-                print my_quark
-                my_quark = ""
-              }
-              next
-            }
-            { print }
-          ' live > live_temp && mv live_temp live
+          rm -f temp_output.txt temp_cleaned.txt
 
       - id: check_repo
         run: |
