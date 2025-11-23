@@ -38,26 +38,9 @@ jobs:
               -e '/解密后的内容:/d' \
               temp_output.txt > temp_cleaned.txt
 
-          # 使用awk来移动"我的夸克"
-          awk '
-            # 保存"我的夸克"行
-            /{"key":"我的夸克"/ { 
-              my_quark = $0
-              next
-            }
-            # 在"本地播放"后面插入"我的夸克"
-            /"timeout":5,/ {
-              print $0
-              if (my_quark != "") {
-                print my_quark
-                my_quark_printed = 1
-              }
-              next
-            }
-            # 打印其他行，但跳过后面重复的"我的夸克"
-            /{"key":"我的夸克"/ && my_quark_printed == 1 { next }
-            { print }
-          ' temp_cleaned.txt > live
+          # 删除原来的"我的夸克"，然后在本地播放后面添加
+          sed -e '/{"key":"我的夸克"/d' -e '/"timeout":5,/a\
+{"key":"我的夸克","name":"🗽我的┃夸克","type":3,"api":"csp_MyQuarkGuard","searchable":0,"quickSearch":0,"changeable":0,"filterable":0,"indexs":0,"style":{"type":"list"},"timeout":30},' temp_cleaned.txt > live
           
           # 清理临时文件
           rm -f temp_output.txt temp_cleaned.txt
