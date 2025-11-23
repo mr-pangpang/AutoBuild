@@ -36,46 +36,32 @@ jobs:
               -e '/最终内容长度:/d' \
               -e '/==================================================/d' \
               -e '/解密后的内容:/d' \
-              temp_output.txt > temp_cleaned.txt
+              temp_output.txt > temp_live.txt
 
-          # 使用Python来移动"我的夸克"
-          python3 -c "
-import sys
-
-# 读取文件内容
-with open('temp_cleaned.txt', 'r') as f:
-    lines = f.readlines()
-
-# 找到'我的夸克'行和'本地播放'的位置
-my_quark_index = -1
-local_play_index = -1
-
-for i, line in enumerate(lines):
-    if '\"key\":\"我的夸克\"' in line:
-        my_quark_index = i
-        my_quark_line = line
-    if '\"key\":\"本地播放\"' in line:
-        local_play_index = i
-
-# 如果找到了'我的夸克'，就移动它
-if my_quark_index != -1 and local_play_index != -1:
-    # 删除原来的'我的夸克'
-    lines.pop(my_quark_index)
-    
-    # 找到'本地播放'块的结束位置（包含timeout的那一行）
-    for i in range(local_play_index, len(lines)):
-        if '\"timeout\":5' in lines[i]:
-            # 在这一行后面插入'我的夸克'
-            lines.insert(i + 1, my_quark_line)
-            break
-
-# 写入结果
-with open('live', 'w') as f:
-    f.writelines(lines)
-"
+      - name: Modify content structure
+        run: |
+          # 查找"我的夸克"段并保存到变量
+          QUARK_SECTION=$(grep -A 10 '{"key":"我的夸克"' temp_live.txt | grep -B 10 '},' | head -n 10)
+          
+          # 如果找到了"我的夸克"段，则进行处理
+          if [ -n "$QUARK_SECTION" ]; then
+            # 创建临时文件
+            cp temp_live.txt temp_modified.txt
+            
+            # 删除原来的"我的夸克"段
+            sed -i '/{"key":"我的夸克"/,/},/d' temp_modified.txt
+            
+            # 在"本地播放"段后面插入"我的夸克"段
+            sed -i '/{"key":"本地播放","name":"🐼本地┃播放","type":3,"api":"csp_LocalGuard","searchable":0,"changeable":0,"indexs":0,"style":{"type":"list"},"timeout":5},/a\
+'"$QUARK_SECTION" temp_modified.txt
+            
+            mv temp_modified.txt live
+          else
+            mv temp_live.txt live
+          fi
           
           # 清理临时文件
-          rm -f temp_output.txt temp_cleaned.txt
+          rm -f temp_live.txt temp_output.txt
 
       - id: check_repo
         run: |
