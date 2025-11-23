@@ -36,45 +36,41 @@ jobs:
               -e '/最终内容长度:/d' \
               -e '/==================================================/d' \
               -e '/解密后的内容:/d' \
-              temp_output.txt > temp_output_cleaned.txt
+              temp_output.txt > temp_cleaned.txt
 
       - name: Move "我的夸克" after "本地播放"
         run: |
           # 读取清理后的文件内容
-          content=$(cat temp_output_cleaned.txt)
+          content=$(cat temp_cleaned.txt)
           
-          # 检查是否包含"我的夸克"
-          if echo "$content" | grep -q '{"key":"我的夸克"'; then
-            # 提取"我的夸克"部分（完整的一行）
-            my_quark_line=$(echo "$content" | grep '{"key":"我的夸克"')
-            
-            # 从原内容中删除"我的夸克"行
-            content_without_quark=$(echo "$content" | sed '/{"key":"我的夸克"/d')
+          # 提取"我的夸克"行
+          my_quark_line=$(echo "$content" | grep '{"key":"我的夸克"')
+          
+          if [ -n "$my_quark_line" ]; then
+            # 如果存在"我的夸克"，先删除它，然后在"本地播放"后插入
+            echo "$content" | awk -v quark="$my_quark_line" '
+              /{"key":"我的夸克"/ { next }  # 跳过我的夸克行
+              /{"key":"本地播放".*/ {
+                print
+                # 读取并打印本地播放的完整块
+                while (getline > 0) {
+                  print
+                  if ($0 ~ /"timeout":5,?$/) {  # 找到本地播放块的结束
+                    print quark  # 插入我的夸克
+                    break
+                  }
+                }
+                next
+              }
+              { print }
+            ' > live
           else
-            # 如果不存在，创建"我的夸克"行
-            my_quark_line='{"key":"我的夸克","name":"🗽我的┃夸克","type":3,"api":"csp_MyQuarkGuard","searchable":0,"quickSearch":0,"changeable":0,"filterable":0,"indexs":0,"style":{"type":"list"},"timeout":30},'
-            content_without_quark="$content"
+            # 如果不存在，直接使用原内容
+            cp temp_cleaned.txt live
           fi
           
-          # 在"本地播放"后面插入"我的夸克"行
-          # 找到"本地播放"块结束的位置（包含 timeout 的那一行）
-          echo "$content_without_quark" | awk -v quark="$my_quark_line" '
-            /{"key":"本地播放".*/ {
-              print
-              found_local=1
-              next
-            }
-            found_local == 1 && /"timeout":5/ {
-              print
-              print quark
-              found_local=0
-              next
-            }
-            {print}
-          ' > live
-          
           # 清理临时文件
-          rm -f temp_output.txt temp_output_cleaned.txt
+          rm -f temp_output.txt temp_cleaned.txt
 
       - id: check_repo
         run: |
