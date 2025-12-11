@@ -298,7 +298,7 @@ def add_custom_fields(content):
 "ads":["static-mozai.4gtv.tv"],
 "lives":[
 	{"name":"TV","type":0,"url":"https://ghproxy.net/https://raw.githubusercontent.com/dpdisk/m3u/main/tv","playerType":2,"timeout":10,"ua":"okHttp/Mod-1.4.0.0"},
-	{"name":"冰茶TV","type":0,"url":"https://fy.188766.xyz/?ip=&mima=mianfeidehaimaiqian&json=true","playerType":2,"timeout":10,"ua":"bingcha/1.1"}
+	{"name":"冰茶TV","type":0,"url":"https://fy.188766.xyz/?ip=&mima=mianfeibuhuaqian&json=true","playerType":2,"timeout":10,"ua":"bingcha/1.1"}
 	]
 }'''
     
