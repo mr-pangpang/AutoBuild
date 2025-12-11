@@ -1,9 +1,8 @@
 import requests
-import re
 
-def decrypt_and_view(target_url):
+def decrypt_and_save(target_url):
     """
-    解密并查看文本内容，同时清理注释行和特定字段，并在最后添加指定内容
+    解密并保存文本内容，同时清理注释行和特定字段，并在最后添加指定内容
     """
     decrypt_api = "http://www.xn--sss604efuw.com/jm/jiemi.php"
     
@@ -12,13 +11,16 @@ def decrypt_and_view(target_url):
     }
     
     try:
+        print(f"正在解密: {target_url}")
         response = requests.get(decrypt_api, params={'url': target_url}, headers=headers, timeout=30)
         
         if response.status_code == 200:
             content = response.text.strip()
+            print(f"原始内容长度: {len(content)}")
             
             # 清理注释行
             content = clean_comments(content)
+            print(f"清理注释后长度: {len(content)}")
             
             # 第一步：删除 ads 和 lives 字段
             content = remove_specific_fields(content, ['"ads"', '"lives"'])
@@ -26,22 +28,28 @@ def decrypt_and_view(target_url):
             # 第二步：删除空白行
             content = remove_blank_lines(content)
             
-            # 第三步：删除 proxy 字段
-            content = remove_specific_fields(content, ['"proxy"'])
+            # 第三步：移动指定项目到正确的目标位置
+            content = reorganize_with_string_ops(content)
             
-            # 第四步：重新排列JSON项目，将"我的夸克"移动到"本地播放"后面
-            content = move_my_quark(content)
+            # 第四步：删除 proxy 字段
+            content = remove_specific_fields(content, ['"proxy"'])
             
             # 第五步：在内容最后添加指定字段
             content = add_custom_fields(content)
             
-            print(content)
+            print(f"最终内容长度: {len(content)}")
             
+            # 保存清理后的内容
+            with open("live", "w", encoding="utf-8") as f:
+                f.write(content)
+            
+            print(f"✅ 解密成功！已保存到 live")
+            print(f"🔍 内容预览: {content[:200]}...")
         else:
-            print(f"解密失败，状态码: {response.status_code}")
+            print(f"❌ 解密失败，状态码: {response.status_code}")
             
     except Exception as e:
-        print(f"错误: {e}")
+        print(f"❌ 错误: {e}")
 
 def clean_comments(content):
     """
@@ -63,9 +71,12 @@ def remove_specific_fields(content, fields_to_remove):
     删除特定的JSON字段
     """
     for field in fields_to_remove:
+        print(f"正在删除字段: {field}")
+        
         # 查找字段开始位置
         start_pos = content.find(field)
         if start_pos == -1:
+            print(f"未找到字段: {field}")
             continue
             
         # 找到字段后的冒号
@@ -112,6 +123,8 @@ def remove_specific_fields(content, fields_to_remove):
             content = content[:start_pos] + content[pos+1:]
         else:
             content = content[:start_pos]
+        
+        print(f"已删除字段: {field}")
     
     # 清理可能的多余逗号
     content = content.replace(',,', ',')
@@ -132,70 +145,87 @@ def remove_blank_lines(content):
         if line.strip():
             non_blank_lines.append(line)
     
-    return '\n'.join(non_blank_lines)
+    cleaned_content = '\n'.join(non_blank_lines)
+    print(f"删除空白行: {len(lines)} -> {len(non_blank_lines)} 行")
+    
+    return cleaned_content
 
-def move_my_quark(content):
+def reorganize_with_string_ops(content):
     """
-    将"我的夸克"项目移动到"本地播放"后面
+    使用字符串操作重新组织结构
     """
-    try:
-        # 使用正则表达式找到"我的夸克"项目
-        my_quark_pattern = r'(\{"key":"我的夸克".*?"timeout":30\},?)'
-        my_quark_match = re.search(my_quark_pattern, content, re.DOTALL)
+    print("使用字符串操作重新组织结构...")
+    
+    # 定义要移动的三个项目的完整文本
+    items_to_move = [
+        '''{"key":"我的夸克","name":"🗽我的┃夸克","type":3,"api":"csp_MyQuarkGuard","searchable":0,"quickSearch":0,"changeable":0,"filterable":0,"indexs":0,"style":{"type":"list"},
+"timeout":30}''',
+        '''{"key":"瓜子看球","name":"⚽瓜子┃看球","type":3,"api":"csp_GzSportGuard","searchable":0,"quickSearch":0,"changeable":0,"style":{"type":"list"},
+"timeout":10}''',
+        '''{"key":"88看球","name":"⚽88┃看球","type":3,"api":"csp_KanqiuGuard","searchable":0,"quickSearch":0,"changeable":0,"style":{"type":"list"},
+"timeout":10}'''
+    ]
+    
+    # 完整的"本地播放"项目
+    local_play_item = '''{"key":"本地播放","name":"🐼本地┃播放","type":3,"api":"csp_LocalGuard","searchable":0,"changeable":0,"indexs":0,"style":{"type":"list"},
+"timeout":5}'''
+    
+    # 第一步：从内容中删除这三个项目
+    for item in items_to_move:
+        # 清理item字符串以便搜索
+        clean_item = item.replace('\n', '').replace(' ', '')
+        clean_content = content.replace('\n', '').replace(' ', '')
         
-        if not my_quark_match:
-            return content
-            
-        my_quark_content = my_quark_match.group(1)
+        # 查找并删除
+        pos = clean_content.find(clean_item)
+        if pos != -1:
+            # 找到原始位置
+            orig_pos = content.find(item[:50])  # 使用前50个字符查找原始位置
+            if orig_pos != -1:
+                # 找到项目的结束位置
+                end_pos = content.find('}', orig_pos)
+                if end_pos != -1:
+                    end_pos += 1
+                    # 检查是否有逗号
+                    if end_pos < len(content) and content[end_pos] == ',':
+                        end_pos += 1
+                    content = content[:orig_pos] + content[end_pos:]
+                    print(f"已删除项目: {item[:30]}...")
+    
+    # 第二步：找到"本地播放"项目并在这之后插入
+    # 先找到完整的本地播放项目
+    local_pos = content.find(local_play_item)
+    if local_pos != -1:
+        # 找到项目的结束位置
+        end_pos = local_pos + len(local_play_item)
         
-        # 从原位置删除"我的夸克"
-        content_without_quark = content.replace(my_quark_content, "", 1)
+        # 确保有逗号
+        if end_pos < len(content) and content[end_pos] != ',':
+            content = content[:end_pos] + ',\n' + content[end_pos:]
+            end_pos += 2
         
-        # 清理可能的多余逗号和空行
-        content_without_quark = re.sub(r',\s*,', ',', content_without_quark)
-        content_without_quark = re.sub(r',\s*}', '}', content_without_quark)
-        content_without_quark = re.sub(r',\s*]', ']', content_without_quark)
-        content_without_quark = re.sub(r'\n\s*\n', '\n', content_without_quark)
+        # 构建要插入的内容
+        insert_content = ',\n'.join(items_to_move)
         
-        # 找到"本地播放"项目的位置
-        local_play_pattern = r'(\{"key":"本地播放".*?"timeout":5\},?)'
-        local_play_match = re.search(local_play_pattern, content_without_quark, re.DOTALL)
+        # 插入到本地播放之后
+        content = content[:end_pos] + ',\n' + insert_content + content[end_pos:]
         
-        if not local_play_match:
-            return content
-            
-        local_play_content = local_play_match.group(1)
-        local_play_end = local_play_match.end()
-        
-        # 在"本地播放"后面插入"我的夸克"
-        before_local_play = content_without_quark[:local_play_end]
-        after_local_play = content_without_quark[local_play_end:]
-        
-        # 构建新内容
-        new_content = before_local_play
-        
-        # 确保在"本地播放"后面有逗号
-        if not before_local_play.rstrip().endswith(','):
-            new_content = new_content.rstrip() + ','
-        
-        # 添加换行和"我的夸克"项目
-        new_content += '\n' + my_quark_content
-        
-        # 如果"我的夸克"后面没有逗号，添加一个
-        if not my_quark_content.endswith(','):
-            new_content += ','
-        
-        # 添加剩余内容
-        new_content += after_local_play
-        
-        # 再次清理格式
-        new_content = re.sub(r'\n\s*\n', '\n', new_content)
-        new_content = re.sub(r',\s*,', ',', new_content)
-        
-        return new_content
-        
-    except Exception:
-        return content
+        print("✅ 已将指定项目移动到完整'本地播放'项目之后")
+    
+    # 第三步：清理格式问题
+    # 移除重复的逗号
+    while ',,' in content:
+        content = content.replace(',,', ',')
+    
+    # 修复可能的多余逗号
+    content = content.replace(',]', ']')
+    content = content.replace(',}', '}')
+    
+    # 移除多余空行
+    while '\n\n\n' in content:
+        content = content.replace('\n\n\n', '\n\n')
+    
+    return content
 
 def add_custom_fields(content):
     """
@@ -233,7 +263,7 @@ def add_custom_fields(content):
 "ads":["static-mozai.4gtv.tv"],
 "lives":[
 {"name":"TV","type":0,"url":"https://ghproxy.net/https://raw.githubusercontent.com/dpdisk/m3u/main/tv","playerType":2,"timeout":10,"ua":"okHttp/Mod-1.4.0.0"},
-{"name":"冰茶TV","type":0,"url":"https://fy.188766.xyz/?ip=&mima=mianfeibuhuaqian&json=true","playerType":2,"timeout":10,"ua":"bingcha/1.1"}
+{"name":"冰茶TV","type":0,"url":"https://fy.188766.xyz/?ip=&mima=mianfeidehaimaiqian&json=true","playerType":2,"timeout":10,"ua":"bingcha/1.1"}
 	]
 }'''
     
@@ -246,9 +276,10 @@ def add_custom_fields(content):
         content = content.rstrip() + ','
     
     content += custom_content
+    print("✅ 已添加自定义字段")
     
     return content
 
 # 使用
 if __name__ == "__main__":
-    decrypt_and_view("http://ok321.top/tv")
+    decrypt_and_save("http://ok321.top/tv")
