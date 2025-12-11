@@ -1,9 +1,9 @@
 import requests
 import json
 
-def decrypt_and_save(target_url):
+def decrypt_and_view(target_url):
     """
-    解密并保存文本内容，同时清理注释行和特定字段，并在最后添加指定内容
+    解密并查看文本内容，同时清理注释行和特定字段，并在最后添加指定内容
     """
     decrypt_api = "http://www.xn--sss604efuw.com/jm/jiemi.php"
     
@@ -40,11 +40,14 @@ def decrypt_and_save(target_url):
             
             print(f"最终内容长度: {len(content)}")
             
-            # 保存清理后的内容
-            with open("live", "w", encoding="utf-8") as f:
-                f.write(content)
+            # 显示处理后的内容
+            print("\n" + "="*50)
+            print("处理后的内容:")
+            print("="*50)
+            print(content)
+            print("="*50)
             
-            print(f"✅ 解密成功！已保存到 live")
+            print(f"✅ 解密成功！")
             print(f"🔍 内容预览: {content[:200]}...")
         else:
             print(f"❌ 解密失败，状态码: {response.status_code}")
@@ -344,4 +347,4 @@ def add_custom_fields(content):
 
 # 使用
 if __name__ == "__main__":
-    decrypt_and_save("http://ok321.top/tv")
+    decrypt_and_view("http://ok321.top/tv")
