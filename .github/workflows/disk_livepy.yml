@@ -22,24 +22,8 @@ jobs:
 
       - name: Run remote script and save output
         run: |
-          # 获取远程脚本并执行，将输出保存到临时文件
-          curl -s https://raw.githubusercontent.com/mr-pangpang/AutoBuild/main/script/live.py | python > temp_output.txt
-          
-          # 使用 sed 删除包含特定关键词的行
-          sed -e '/正在解密:/d' \
-              -e '/原始内容长度:/d' \
-              -e '/清理注释后长度:/d' \
-              -e '/正在删除字段:/d' \
-              -e '/已删除字段:/d' \
-              -e '/删除空白行:/d' \
-              -e '/✅ 已添加自定义字段/d' \
-              -e '/最终内容长度:/d' \
-              -e '/==================================================/d' \
-              -e '/解密后的内容:/d' \
-              temp_output.txt > live
-          
-          # 清理临时文件
-          rm -f temp_output.txt
+          # 获取远程脚本并执行，将输出直接保存到 live 文件
+          curl -s https://raw.githubusercontent.com/mr-pangpang/AutoBuild/main/script/live.py | python > live
 
       - id: check_repo
         run: |
