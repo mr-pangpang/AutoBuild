@@ -12,16 +12,13 @@ def decrypt_and_view(target_url):
     }
     
     try:
-        print(f"正在解密: {target_url}")
         response = requests.get(decrypt_api, params={'url': target_url}, headers=headers, timeout=30)
         
         if response.status_code == 200:
             content = response.text.strip()
-            print(f"原始内容长度: {len(content)}")
             
             # 清理注释行
             content = clean_comments(content)
-            print(f"清理注释后长度: {len(content)}")
             
             # 第一步：删除 ads 和 lives 字段
             content = remove_specific_fields(content, ['"ads"', '"lives"'])
@@ -38,22 +35,13 @@ def decrypt_and_view(target_url):
             # 第五步：在内容最后添加指定字段
             content = add_custom_fields(content)
             
-            print(f"最终内容长度: {len(content)}")
-            
             # 显示处理后的内容
-            print("\n" + "="*50)
-            print("处理后的内容:")
-            print("="*50)
             print(content)
-            print("="*50)
-            
-            print(f"✅ 解密成功！")
-            print(f"🔍 内容预览: {content[:200]}...")
         else:
-            print(f"❌ 解密失败，状态码: {response.status_code}")
+            print(f"解密失败，状态码: {response.status_code}")
             
     except Exception as e:
-        print(f"❌ 错误: {e}")
+        print(f"错误: {e}")
 
 def clean_comments(content):
     """
@@ -75,12 +63,9 @@ def remove_specific_fields(content, fields_to_remove):
     删除特定的JSON字段
     """
     for field in fields_to_remove:
-        print(f"正在删除字段: {field}")
-        
         # 查找字段开始位置
         start_pos = content.find(field)
         if start_pos == -1:
-            print(f"未找到字段: {field}")
             continue
             
         # 找到字段后的冒号
@@ -127,8 +112,6 @@ def remove_specific_fields(content, fields_to_remove):
             content = content[:start_pos] + content[pos+1:]
         else:
             content = content[:start_pos]
-        
-        print(f"已删除字段: {field}")
     
     # 清理可能的多余逗号
     content = content.replace(',,', ',')
@@ -149,17 +132,12 @@ def remove_blank_lines(content):
         if line.strip():
             non_blank_lines.append(line)
     
-    cleaned_content = '\n'.join(non_blank_lines)
-    print(f"删除空白行: {len(lines)} -> {len(non_blank_lines)} 行")
-    
-    return cleaned_content
+    return '\n'.join(non_blank_lines)
 
 def reorganize_json_structure(content):
     """
     重新组织JSON结构，将指定项目移动到"本地播放"之后
     """
-    print("正在重新组织JSON结构...")
-    
     # 首先尝试找到完整的JSON对象
     try:
         # 找到JSON的开始和结束
@@ -167,7 +145,6 @@ def reorganize_json_structure(content):
         json_end = content.rfind('}')
         
         if json_start == -1 or json_end == -1:
-            print("未找到有效的JSON结构")
             return content
             
         # 提取整个JSON内容
@@ -178,7 +155,6 @@ def reorganize_json_structure(content):
         
         # 检查是否包含sites字段
         if 'sites' not in data:
-            print("JSON中未找到sites字段")
             return content
             
         sites = data['sites']
@@ -200,7 +176,6 @@ def reorganize_json_structure(content):
                 remaining_items.append(site)
         
         if target_position == -1 or not items_to_move:
-            print(f"未找到目标位置或要移动的项目: 目标位置={target_position}, 要移动的项目数={len(items_to_move)}")
             return content
         
         # 重新构建sites数组
@@ -221,23 +196,18 @@ def reorganize_json_structure(content):
         # 替换原内容
         new_content = content[:json_start] + new_json + content[json_end+1:]
         
-        print(f"✅ 已重新组织JSON结构，移动了 {len(items_to_move)} 个项目")
         return new_content
         
-    except json.JSONDecodeError as e:
-        print(f"JSON解析错误: {e}")
+    except json.JSONDecodeError:
         # 如果JSON解析失败，使用字符串处理方法
         return reorganize_with_string_ops(content)
-    except Exception as e:
-        print(f"重新组织JSON结构时出错: {e}")
+    except Exception:
         return content
 
 def reorganize_with_string_ops(content):
     """
     使用字符串操作重新组织结构（JSON解析失败时的备用方法）
     """
-    print("使用字符串操作重新组织结构...")
-    
     # 定义要移动的三个项目的完整文本
     items_to_move = [
         '''{"key":"我的夸克","name":"🗽我的┃夸克","type":3,"api":"csp_MyQuarkGuard","searchable":0,"quickSearch":0,"changeable":0,"filterable":0,"indexs":0,"style":{"type":"list"},
@@ -262,7 +232,7 @@ def reorganize_with_string_ops(content):
         pos = clean_content.find(clean_item)
         if pos != -1:
             # 找到原始位置
-            orig_pos = content.find(item[:50])  # 使用前50个字符查找原始位置
+            orig_pos = content.find(item[:50])
             if orig_pos != -1:
                 # 找到项目的结束位置
                 end_pos = content.find('}', orig_pos)
@@ -327,8 +297,8 @@ def add_custom_fields(content):
 	],
 "ads":["static-mozai.4gtv.tv"],
 "lives":[
-{"name":"TV","type":0,"url":"https://ghproxy.net/https://raw.githubusercontent.com/dpdisk/m3u/main/tv","playerType":2,"timeout":10,"ua":"okHttp/Mod-1.4.0.0"},
-{"name":"冰茶TV","type":0,"url":"https://fy.188766.xyz/?ip=&mima=mianfeidehaimaiqian&json=true","playerType":2,"timeout":10,"ua":"bingcha/1.1"}
+	{"name":"TV","type":0,"url":"https://ghproxy.net/https://raw.githubusercontent.com/dpdisk/m3u/main/tv","playerType":2,"timeout":10,"ua":"okHttp/Mod-1.4.0.0"},
+	{"name":"冰茶TV","type":0,"url":"https://fy.188766.xyz/?ip=&mima=mianfeidehaimaiqian&json=true","playerType":2,"timeout":10,"ua":"bingcha/1.1"}
 	]
 }'''
     
@@ -341,7 +311,6 @@ def add_custom_fields(content):
         content = content.rstrip() + ','
     
     content += custom_content
-    print("✅ 已添加自定义字段")
     
     return content
 
