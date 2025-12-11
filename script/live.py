@@ -1,4 +1,5 @@
 import requests
+import json
 
 def decrypt_and_save(target_url):
     """
@@ -28,8 +29,8 @@ def decrypt_and_save(target_url):
             # 第二步：删除空白行
             content = remove_blank_lines(content)
             
-            # 第三步：移动指定项目到正确的目标位置
-            content = reorganize_with_string_ops(content)
+            # 第三步：解析JSON并重新组织结构
+            content = reorganize_json_structure(content)
             
             # 第四步：删除 proxy 字段
             content = remove_specific_fields(content, ['"proxy"'])
@@ -150,9 +151,87 @@ def remove_blank_lines(content):
     
     return cleaned_content
 
+def reorganize_json_structure(content):
+    """
+    重新组织JSON结构，将指定项目移动到"本地播放"之后
+    """
+    print("正在重新组织JSON结构...")
+    
+    # 首先尝试找到完整的JSON对象
+    try:
+        # 找到JSON的开始和结束
+        json_start = content.find('{')
+        json_end = content.rfind('}')
+        
+        if json_start == -1 or json_end == -1:
+            print("未找到有效的JSON结构")
+            return content
+            
+        # 提取整个JSON内容
+        json_content = content[json_start:json_end+1]
+        
+        # 解析JSON
+        data = json.loads(json_content)
+        
+        # 检查是否包含sites字段
+        if 'sites' not in data:
+            print("JSON中未找到sites字段")
+            return content
+            
+        sites = data['sites']
+        
+        # 找到要移动的三个项目和目标位置
+        items_to_move = []
+        remaining_items = []
+        target_position = -1
+        
+        for i, site in enumerate(sites):
+            key = site.get('key', '')
+            
+            if key == '本地播放':
+                target_position = i
+            
+            if key in ['我的夸克', '瓜子看球', '88看球']:
+                items_to_move.append(site)
+            else:
+                remaining_items.append(site)
+        
+        if target_position == -1 or not items_to_move:
+            print(f"未找到目标位置或要移动的项目: 目标位置={target_position}, 要移动的项目数={len(items_to_move)}")
+            return content
+        
+        # 重新构建sites数组
+        new_sites = []
+        
+        for i, site in enumerate(remaining_items):
+            new_sites.append(site)
+            # 在"本地播放"之后插入要移动的项目
+            if site.get('key') == '本地播放':
+                new_sites.extend(items_to_move)
+        
+        # 更新数据
+        data['sites'] = new_sites
+        
+        # 重新生成JSON字符串
+        new_json = json.dumps(data, ensure_ascii=False, indent=2)
+        
+        # 替换原内容
+        new_content = content[:json_start] + new_json + content[json_end+1:]
+        
+        print(f"✅ 已重新组织JSON结构，移动了 {len(items_to_move)} 个项目")
+        return new_content
+        
+    except json.JSONDecodeError as e:
+        print(f"JSON解析错误: {e}")
+        # 如果JSON解析失败，使用字符串处理方法
+        return reorganize_with_string_ops(content)
+    except Exception as e:
+        print(f"重新组织JSON结构时出错: {e}")
+        return content
+
 def reorganize_with_string_ops(content):
     """
-    使用字符串操作重新组织结构
+    使用字符串操作重新组织结构（JSON解析失败时的备用方法）
     """
     print("使用字符串操作重新组织结构...")
     
@@ -190,7 +269,6 @@ def reorganize_with_string_ops(content):
                     if end_pos < len(content) and content[end_pos] == ',':
                         end_pos += 1
                     content = content[:orig_pos] + content[end_pos:]
-                    print(f"已删除项目: {item[:30]}...")
     
     # 第二步：找到"本地播放"项目并在这之后插入
     # 先找到完整的本地播放项目
@@ -198,7 +276,6 @@ def reorganize_with_string_ops(content):
     if local_pos != -1:
         # 找到项目的结束位置
         end_pos = local_pos + len(local_play_item)
-        
         # 确保有逗号
         if end_pos < len(content) and content[end_pos] != ',':
             content = content[:end_pos] + ',\n' + content[end_pos:]
@@ -209,21 +286,6 @@ def reorganize_with_string_ops(content):
         
         # 插入到本地播放之后
         content = content[:end_pos] + ',\n' + insert_content + content[end_pos:]
-        
-        print("✅ 已将指定项目移动到完整'本地播放'项目之后")
-    
-    # 第三步：清理格式问题
-    # 移除重复的逗号
-    while ',,' in content:
-        content = content.replace(',,', ',')
-    
-    # 修复可能的多余逗号
-    content = content.replace(',]', ']')
-    content = content.replace(',}', '}')
-    
-    # 移除多余空行
-    while '\n\n\n' in content:
-        content = content.replace('\n\n\n', '\n\n')
     
     return content
 
