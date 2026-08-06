@@ -1,14 +1,18 @@
-name: Keep Alive 保活防禁用
+name: Keep Alive
 on:
   schedule:
-    # 每月1号凌晨2点自动执行
+    # 每月1号凌晨2点自动保活
     - cron: "0 2 1 * *"
+  workflow_dispatch: # 开启手动触发按钮
+
 jobs:
   keepalive:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # 授予仓库写入权限，避免推送失败
     steps:
       - uses: actions/checkout@v4
-      - name: 提交空更新保活
+      - name: 生成空提交保活仓库
         run: |
           git config --global user.name "AutoBot"
           git config --global user.email "bot@github.com"
