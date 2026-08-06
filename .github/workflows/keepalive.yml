@@ -1,0 +1,16 @@
+name: Keep Alive 保活防禁用
+on:
+  schedule:
+    # 每月1号凌晨2点自动执行
+    - cron: "0 2 1 * *"
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: 提交空更新保活
+        run: |
+          git config --global user.name "AutoBot"
+          git config --global user.email "bot@github.com"
+          git commit --allow-empty -m "Auto keepalive commit 防止workflow被禁用"
+          git push
